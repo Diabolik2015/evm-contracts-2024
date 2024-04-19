@@ -5,10 +5,15 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract EmergencyFunctions is Ownable {
-    address teamAddress;
+    address internal teamAddress;
     constructor(address _teamAddress) Ownable(_teamAddress) {
         teamAddress = _teamAddress;
     }
+
+    function updateTeamAddress(address _teamAddress) public onlyOwner {
+        teamAddress = _teamAddress;
+    }
+
     // Emergency Functions
     function sendTokenToTeam(address _token) public onlyOwner {
         uint256 amount = IERC20(_token).balanceOf(address(this));

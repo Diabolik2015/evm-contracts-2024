@@ -32,5 +32,5 @@ export async function deployAndSetupCyclixRandomizer() {
 }
 
 export function toEtherBigInt(amount: string | number) {
-    return BigInt(Number(amount) * 10 ** 18);
+    return BigInt(Number(amount) * 10 ** 9 * 10 ** 9);
 }
