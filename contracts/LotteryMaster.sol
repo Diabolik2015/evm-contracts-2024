@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.20;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
@@ -28,23 +28,25 @@ import {EmergencyFunctions} from "./utils/EmergencyFunctions.sol";
         bool ended;
         uint16[] roundNumbers;
         uint16 powerNumber;
-        uint16[] referralWinnersIndexes;
+        uint16[] referralWinnersNumber;
+        uint256 ticketsCount;
+        uint256[] ticketIds;
     }
 
     struct Ticket {
+        uint256 id;
         address participantAddress;
         address referralAddress;
-        uint16[] numbers;
-        uint16 powerNumber;
         bool winner;
         bool claimed;
         uint256 chainId;
         RoundVictoryTier victoryTier;
+        uint16 powerNumber;
     }
 
     struct ReferralTicket {
         address referralAddress;
-        uint256 referralTicketNumber;
+        uint16 referralTicketNumber;
         bool winner;
         bool claimed;
     }
@@ -53,8 +55,9 @@ contract LotteryMaster is EmergencyFunctions {
 
     uint256 public roundCount;
     Round[] public rounds;
-    mapping(uint256 => Ticket[]) public roundTickets;
-    mapping(uint256 => uint256) public roundTicketsCount;
+    Ticket[] public tickets;
+    mapping(uint256 => uint16[]) public ticketNumbers;
+
     mapping(uint256 => mapping(address => uint256[])) public roundTicketsByAddress;
     mapping(uint256 => mapping(address => uint256)) public roundTicketsByAddressCount;
     mapping(uint256 => ReferralTicket[]) public roundReferralTickets;
@@ -63,6 +66,11 @@ contract LotteryMaster is EmergencyFunctions {
     mapping(uint256 => mapping(address => uint256)) public roundReferralTicketsByAddressCount;
     mapping(address => uint16) public freeRounds;
     mapping(uint => mapping(RoundVictoryTier => uint256)) public victoryTierAmounts;
+    address[] public bankWallets;
+    uint16 public counterForBankWallets;
+    function addBankWallet(address wallet) public onlyOwner {
+        bankWallets.push(wallet);
+    }
     uint256 public roundDurationInSeconds;
     function setRoundDurationInSeconds(uint256 _roundDuration) public onlyOwner {
         roundDurationInSeconds = _roundDuration;
@@ -89,15 +97,14 @@ contract LotteryMaster is EmergencyFunctions {
             ended : false,
             roundNumbers: new uint16[](0),
             powerNumber: 0,
-            referralWinnersIndexes: new uint16[](0)
+            referralWinnersNumber: new uint16[](0),
+            ticketsCount : 0,
+            ticketIds : new uint256[](0)
         }));
         if (roundCount > 1) {
             victoryTierAmounts[roundCount][RoundVictoryTier.Tier5_1] = victoryTierAmounts[roundCount - 1][RoundVictoryTier.Tier5_1];
             victoryTierAmounts[roundCount][RoundVictoryTier.Tier5] = victoryTierAmounts[roundCount - 1][RoundVictoryTier.Tier5];
             victoryTierAmounts[roundCount][RoundVictoryTier.Tier4_1] = victoryTierAmounts[roundCount - 1][RoundVictoryTier.Tier4_1];
-            victoryTierAmounts[roundCount][RoundVictoryTier.Tier4] = victoryTierAmounts[roundCount - 1][RoundVictoryTier.Tier4];
-            victoryTierAmounts[roundCount][RoundVictoryTier.Tier3_1] = victoryTierAmounts[roundCount - 1][RoundVictoryTier.Tier3_1];
-            victoryTierAmounts[roundCount][RoundVictoryTier.Tier3] = victoryTierAmounts[roundCount - 1][RoundVictoryTier.Tier3];
             victoryTierAmounts[roundCount][RoundVictoryTier.Referrer] = victoryTierAmounts[roundCount - 1][RoundVictoryTier.Referrer];
             victoryTierAmounts[roundCount][RoundVictoryTier.TokenHolders] = victoryTierAmounts[roundCount - 1][RoundVictoryTier.TokenHolders];
             victoryTierAmounts[roundCount][RoundVictoryTier.Treasury] = victoryTierAmounts[roundCount - 1][RoundVictoryTier.Treasury];
@@ -154,35 +161,40 @@ contract LotteryMaster is EmergencyFunctions {
         victoryTierAmounts[roundId][RoundVictoryTier.Treasury] += treasury;
     }
 
-    function buyTicket(uint256 chainId, uint16[] memory numbers, uint16 powerNumber, address referral ) public {
-        validateBuyTicket(numbers, powerNumber, referral);
+    function buyTicket(uint256 chainId, uint16[] memory chosenNumbers, uint16 powerNumber, address referral ) public {
+        validateBuyTicket(chosenNumbers, powerNumber, referral);
 
         if (freeRounds[msg.sender] > 0) {
             freeRounds[msg.sender]--;
         } else {
-            paymentToken.transferFrom(msg.sender, address(this), ticketPrice);
+            counterForBankWallets = uint16(counterForBankWallets++ % bankWallets.length);
+            paymentToken.transferFrom(msg.sender, bankWallets[counterForBankWallets], ticketPrice);
             updateVictoryPoolForTicket(ticketPrice);
         }
 
-        roundTickets[roundCount].push(Ticket({
+        uint256 ticketId = tickets.length;
+        tickets.push(Ticket({
+            id: ticketId,
             participantAddress: msg.sender,
             referralAddress: referral,
-            numbers: numbers,
-            powerNumber: powerNumber,
             winner: false,
             claimed: false,
             chainId: chainId,
-            victoryTier: RoundVictoryTier.NO_WIN
+            victoryTier: RoundVictoryTier.NO_WIN,
+            powerNumber: powerNumber
         }));
-        roundTicketsCount[roundCount]++;
-        roundTicketsByAddress[roundCount][msg.sender].push(roundTickets[roundCount].length - 1);
+        for(uint i = 0; i < chosenNumbers.length; i++) {
+            ticketNumbers[ticketId].push(chosenNumbers[i]);
+        }
+        rounds[roundCount - 1].ticketIds.push(ticketId);
+        rounds[roundCount - 1].ticketsCount++;
+        roundTicketsByAddress[roundCount][msg.sender].push(ticketId);
         roundTicketsByAddressCount[roundCount][msg.sender]++;
-        Round storage currentRound = rounds[roundCount - 1];
         if (referral != address(0)) {
             roundReferralTicketsCount[roundCount]++;
             roundReferralTickets[roundCount].push(ReferralTicket({
                 referralAddress: msg.sender,
-                referralTicketNumber: roundReferralTicketsCount[roundCount],
+                referralTicketNumber: uint16(roundReferralTicketsCount[roundCount]),
                 winner: false,
                 claimed: false
             }));
@@ -215,7 +227,7 @@ contract LotteryMaster is EmergencyFunctions {
         return victoryTierAmounts[roundId][RoundVictoryTier.TokenHolders];
     }
 
-    function treasuryAmount(uint256 roundId) public view returns (uint256) {
+    function treasuryPoolAmount(uint256 roundId) public view returns (uint256) {
         return victoryTierAmounts[roundId][RoundVictoryTier.Treasury];
     }
 
@@ -276,25 +288,77 @@ contract LotteryMaster is EmergencyFunctions {
             }
             roundForNumbers.powerNumber = uint16(randomWords[5] % 26 + 1);
             for (uint i = 6; i < randomWords.length; i++) {
-                roundForNumbers.referralWinnersIndexes.push(getRandomUniqueNumberInArrayForMaxValue(randomWords[i],
-                    uint16(roundReferralTicketsCount[roundCount]), roundForNumbers.referralWinnersIndexes));
+                roundForNumbers.referralWinnersNumber.push(getRandomUniqueNumberInArrayForMaxValue(randomWords[i],
+                    uint16(roundReferralTicketsCount[roundCount]), roundForNumbers.referralWinnersNumber));
             }
         }
     }
 
-    function getPublicRoundWinningNumbers(uint256 roundId) public view returns (uint16[] memory) {
-        return rounds[roundId - 1].roundNumbers;
+    function markWinnerTickets(uint256 roundId, uint16[] memory ticketIndexes, uint16[] memory referralTicketIndexes) public {
+
     }
 
-    function getPublicRoundPowerNumber(uint256 roundId) public view returns (uint16) {
-        return rounds[roundId - 1].powerNumber;
-    }
+    function evaluateWonAmount(uint256 roundId, uint16[] memory ticketIds, uint16[] memory referralTicketIndexes) public view returns (uint256) {
+        uint256 wonAmount = 0;
+        Round storage roundForEvaluation = rounds[roundId - 1];
+        uint16[] memory roundNumbers = roundForEvaluation.roundNumbers;
+        uint16 powerNumber = roundForEvaluation.powerNumber;
 
-    function getReferralWinnersIndexes(uint256 roundId) public view returns (uint16[] memory) {
-        return rounds[roundId - 1].referralWinnersIndexes;
-    }
+        uint tiersWontAmounts5_1;
+        uint tiersWontAmounts5;
+        uint tiersWontAmounts4_1;
+        uint tiersWontAmounts4;
+        uint tiersWontAmounts3_1;
+        uint tiersWontAmounts3;
+        for(uint256 ticketId = 0 ; ticketId < ticketIds.length; ticketId++) {
+            Ticket storage ticket = tickets[ticketIds[ticketId]];
+            uint16[] memory ticketNumbers = ticketNumbers[ticket.id];
+            uint16 correctNumbers = 0;
+            for (uint i = 0; i < ticketNumbers.length; i++) {
+                if (existInArrayNumber(ticketNumbers[i], roundNumbers)) {
+                    correctNumbers++;
+                }
+            }
+            bool powerNumberCorrect = ticket.powerNumber == powerNumber;
+            if (correctNumbers == 5 && powerNumberCorrect) {
+                tiersWontAmounts5_1++;
+            } else if (correctNumbers == 5) {
+                tiersWontAmounts5++;
+            } else if (correctNumbers == 4 && powerNumberCorrect) {
+                tiersWontAmounts4_1++;
+            } else if (correctNumbers == 4) {
+                tiersWontAmounts4++;
+            } else if (correctNumbers == 3 && powerNumberCorrect) {
+                tiersWontAmounts3_1++;
+            } else if (correctNumbers == 3) {
+                tiersWontAmounts3++;
+            }
+        }
 
-    function markWinnerTickets(uint256 roundId, uint16[] memory ticketIndexes, uint16 referralTicketIndexes) public {
-
+        uint16[] memory referralWinnersNumber = roundForEvaluation.referralWinnersNumber;
+        bool oneReferralWon = false;
+        for (uint16 refIndex = 0; refIndex < referralTicketIndexes.length; refIndex++) {
+            ReferralTicket storage refTicket = roundReferralTickets[roundId][referralTicketIndexes[refIndex]];
+            if (existInArrayNumber(refTicket.referralTicketNumber, referralWinnersNumber)) {
+                oneReferralWon = true;
+                break;
+            }
+        }
+        if (oneReferralWon) {
+            wonAmount += poolForReferral(roundId);
+        }
+        if (tiersWontAmounts5_1 > 0) {
+            wonAmount += victoryTierAmounts[roundId][RoundVictoryTier.Tier5_1] ;
+        }
+        if (tiersWontAmounts5 > 0) {
+            wonAmount += victoryTierAmounts[roundId][RoundVictoryTier.Tier5] ;
+        }
+        if (tiersWontAmounts4_1 > 0) {
+            wonAmount += victoryTierAmounts[roundId][RoundVictoryTier.Tier4_1] ;
+        }
+        return tiersWontAmounts4 * victoryTierAmounts[roundId][RoundVictoryTier.Tier4] +
+        tiersWontAmounts3_1 * victoryTierAmounts[roundId][RoundVictoryTier.Tier3_1] +
+        tiersWontAmounts3 * victoryTierAmounts[roundId][RoundVictoryTier.Tier3] +
+            wonAmount;
     }
 }
