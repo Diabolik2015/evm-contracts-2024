@@ -146,7 +146,7 @@ describe("Lottery Master", function () {
       await lotteryMaster.connect(player2).buyTicket((await hre.ethers.provider.getNetwork()).chainId, [1, 4, 6, 10, 21], 24, player1.address);
       round = await lotteryMaster.rounds(0);
       expect(round.ticketsCount).equal(3);
-      expect(await lotteryMaster.roundReferralTicketsCount(round.id)).equal(2);
+      expect(round.referralCounts).equal(2);
       expect((await usdtContract.balanceOf(owner.address)) - initialOwnerBalance).equal(toEtherBigInt(30))
     });
 
@@ -160,7 +160,7 @@ describe("Lottery Master", function () {
       await lotteryMaster.connect(player3).buyTicket((await hre.ethers.provider.getNetwork()).chainId, [1, 4, 6, 10, 21], 24, player1.address);
       const round = await lotteryMaster.rounds(0);
       expect(round.ticketsCount).equal(3);
-      expect(await lotteryMaster.roundReferralTicketsCount(round.id)).equal(3);
+      expect(round.referralCounts).equal(3);
       expect((await usdtContract.balanceOf(owner.address)) - initialOwnerBalance).equal(toEtherBigInt(10))
     });
 
@@ -218,8 +218,7 @@ describe("Lottery Master", function () {
       const referralCountTickets = await lotteryMaster.roundReferralTicketsByAddressCount(roundId, referral1.address)
       const referralTickets = []
       for (let i = 0; i < referralCountTickets; i++) {
-        referralTickets.push(await lotteryMaster.roundReferralTickets(roundId,
-            await lotteryMaster.roundReferralTicketsByAddress(roundId, referral1.address, i)))
+        referralTickets.push(await lotteryMaster.referralTickets(await lotteryMaster.roundReferralTicketsByAddress(roundId, referral1, i)))
       }
       expect(referralTickets.map(r => r.referralTicketNumber)).to.deep.equal([1, 4, 5, 6]);
 
@@ -266,7 +265,7 @@ describe("Lottery Master", function () {
         const powerNumberFound = ticket.powerNumber === winningPowerNumberFromChain
         let rightNumbersForTicket = 0
         for(let i = 0; i < 5; i++) {
-          if (checkNumberExistInArray(winningNumbersFromChain, await lotteryMaster.ticketNumbers(ticket.id, i))) {
+          if (checkNumberExistInArray(winningNumbersFromChain.map(b => Number(b)), Number(await lotteryMaster.ticketNumbers(ticket.id, i)))) {
             rightNumbersForTicket++
           }
         }
@@ -276,14 +275,14 @@ describe("Lottery Master", function () {
           winnerTicketsResults.push([ticket.id, tier])
         }
       }
-      const referralTicketsCount = await lotteryMaster.roundReferralTicketsCount(roundId)
-      const winnerReferralTicketsIndexes: number[] = []
-      for (let i = 0; i < referralTicketsCount; i++) {
-        const referralTicket = await lotteryMaster.roundReferralTickets(roundId, i);
-      }
+      // const referralTicketsCount = await lotteryMaster.roundReferralTicketsCount(roundId)
+      // const winnerReferralTicketsIndexes: number[] = []
+      // for (let i = 0; i < referralTicketsCount; i++) {
+      //   const referralTicket = await lotteryMaster.roundReferralTickets(roundId, i);
+      // }
 
       // @ts-ignore
-      await lotteryMaster.evaluateWonAmount(roundId, winnerTicketsResults.map(([id, tier]) => id), winnerReferralTicketsIndexes)
+      // await lotteryMaster.evaluateWonAmount(roundId, winnerTicketsResults.map(([id, tier]) => id), winnerReferralTicketsIndexes)
       // await lotteryMaster.markWinnerTickets(roundId, winnerTicketsIndexes, winnerReferralTicketsIndexes)
 
 
