@@ -14,11 +14,11 @@ import {EmergencyFunctions} from "./utils/EmergencyFunctions.sol";
         Tier4,
         Tier3_1,
         Tier3,
+        NO_WIN,
         PublicPool,
         Referrer,
         TokenHolders,
-        Treasury,
-        NO_WIN
+        Treasury
     }
 
     struct Round {
@@ -47,6 +47,11 @@ import {EmergencyFunctions} from "./utils/EmergencyFunctions.sol";
         uint16 powerNumber;
     }
 
+    struct TicketResults {
+        uint256 ticketId;
+        RoundVictoryTier victoryTier;
+    }
+
     struct ReferralTicket {
         uint256 id;
         address referralAddress;
@@ -55,21 +60,45 @@ import {EmergencyFunctions} from "./utils/EmergencyFunctions.sol";
         bool claimed;
     }
 
+    struct ReferralTicketResults {
+        uint256 referralTicketId;
+        bool won;
+    }
+
 contract LotteryMaster is EmergencyFunctions {
 
     uint256 public roundCount;
     Round[] public rounds;
+    function roundForId(uint256 roundId) public view returns (Round memory) {
+        return rounds[roundId - 1];
+    }
+
+    function getCurrentRound() public view returns (Round memory) {
+        return rounds[roundCount - 1];
+    }
     Ticket[] public tickets;
+    function ticketAtIndex(uint256 ticketId) public view returns (Ticket memory) {
+        return tickets[ticketId];
+    }
     mapping(uint256 => uint16[]) public ticketNumbers;
+    function numbersForTicketId(uint256 ticketId) public view returns (uint16[] memory) {
+        return ticketNumbers[ticketId];
+    }
     mapping(uint256 => mapping(address => uint256[])) public roundTicketsByAddress;
     mapping(uint256 => mapping(address => uint256)) public roundTicketsByAddressCount;
 
     ReferralTicket[] public referralTickets;
+    function referralTicketAtIndex(uint256 index) public view returns (ReferralTicket memory) {
+        return referralTickets[index];
+    }
     mapping(uint256 => mapping(address => uint256[])) public roundReferralTicketsByAddress;
     mapping(uint256 => mapping(address => uint256)) public roundReferralTicketsByAddressCount;
 
     mapping(address => uint16) public freeRounds;
     mapping(uint => mapping(RoundVictoryTier => uint256)) public victoryTierAmounts;
+    function victoryTierAmountFor(uint256 roundId, RoundVictoryTier victoryTier) public view returns (uint256) {
+        return victoryTierAmounts[roundId][victoryTier];
+    }
     address[] public bankWallets;
     uint16 public counterForBankWallets;
     function addBankWallet(address wallet) public onlyOwner {
@@ -81,12 +110,14 @@ contract LotteryMaster is EmergencyFunctions {
     }
     IERC20Metadata public paymentToken;
     CyclixRandomizerInterface public randomizer;
+    LotteryMasterReader public reader;
     uint256 public ticketPrice;
 
     constructor(address cyclixRandomizer, address _paymentToken, uint256 _ticketPrice, uint256 _roundDuration)
     EmergencyFunctions(msg.sender) {
         randomizer = CyclixRandomizerInterface(cyclixRandomizer);
         randomizer.registerGameContract(address(this), "LotteryMasterV0.1");
+        reader = new LotteryMasterReader(this);
         paymentToken = IERC20Metadata(_paymentToken);
         ticketPrice = _ticketPrice * (10 ** uint256(paymentToken.decimals()));
         roundDurationInSeconds = _roundDuration;
@@ -199,7 +230,7 @@ contract LotteryMaster is EmergencyFunctions {
         roundTicketsByAddress[roundCount][msg.sender].push(tickets.length - 1);
         roundTicketsByAddressCount[roundCount][msg.sender]++;
         if (referral != address(0)) {
-            uint256 referralTicketId = tickets.length;
+            uint256 referralTicketId = referralTickets.length;
             rounds[roundCount - 1].referralTicketIds.push(referralTicketId);
             rounds[roundCount - 1].referralCounts++;
             referralTickets.push(ReferralTicket({
@@ -221,46 +252,77 @@ contract LotteryMaster is EmergencyFunctions {
         }
     }
 
-    function poolForHighVictoryTier(uint256 roundId, RoundVictoryTier victoryTier) public view returns(uint256) {
-        require(victoryTier == RoundVictoryTier.Tier5_1 || victoryTier == RoundVictoryTier.Tier5 || victoryTier == RoundVictoryTier.Tier4_1, "Invalid victory tier");
-        return victoryTierAmounts[roundId][victoryTier];
-    }
-
-    function poolForReferral(uint256 roundId) public view returns(uint256) {
-        return victoryTierAmounts[roundId][RoundVictoryTier.Referrer];
-    }
-
-    function priceForLowVictoryTier(uint256 roundId, RoundVictoryTier victoryTier) public view returns(uint256) {
-        require(victoryTier == RoundVictoryTier.Tier4 || victoryTier == RoundVictoryTier.Tier3_1 || victoryTier == RoundVictoryTier.Tier3, "Invalid victory tier");
-        return victoryTierAmounts[roundId][victoryTier];
-    }
-
-    function tokenHoldersPoolAmount(uint256 roundId) public view returns (uint256) {
-        return victoryTierAmounts[roundId][RoundVictoryTier.TokenHolders];
-    }
-
-    function treasuryPoolAmount(uint256 roundId) public view returns (uint256) {
-        return victoryTierAmounts[roundId][RoundVictoryTier.Treasury];
-    }
-
-    function getCurrentRound() public view returns (Round memory) {
-        return rounds[roundCount - 1];
-    }
-
     mapping(uint256 => uint256) public publicRoundRandomNumbersRequestId;
 
     function closeRound() external onlyOwner {
         Round storage currentRound = rounds[roundCount - 1];
         require(block.timestamp >= currentRound.endTime, "Round is not over yet");
         currentRound.ended = true;
-        uint32 randomNumbersForReferrals = 0;
+        publicRoundRandomNumbersRequestId[roundCount] = randomizer.requestRandomWords(6 + reader.numberOfReferralWinnersForRound(roundCount));
+    }
+
+    function fetchRoundNumbers(uint256 roundId) external onlyOwner {
+        Round storage roundForNumbers = rounds[roundId - 1];
+        require(roundForNumbers.ended == true, "Round should be closed to evaluate the numbers");
+        require(roundForNumbers.powerNumber == 0, "Random numbers already fetched");
+        (bool fulfilled, uint256[] memory randomWords) = randomizer.getRequestStatus(publicRoundRandomNumbersRequestId[roundId]);
+        require(fulfilled, "Random numbers not ready");
+        if (fulfilled) {
+            for (uint i = 0; i < 5; i++) {
+                roundForNumbers.roundNumbers.push(reader.getRandomUniqueNumberInArrayForMaxValue(randomWords[i], 69, roundForNumbers.roundNumbers));
+            }
+            roundForNumbers.powerNumber = uint16(randomWords[5] % 26 + 1);
+            for (uint i = 6; i < randomWords.length; i++) {
+                roundForNumbers.referralWinnersNumber.push(reader.getRandomUniqueNumberInArrayForMaxValue(randomWords[i],
+                    roundForNumbers.referralCounts, roundForNumbers.referralWinnersNumber));
+                roundForNumbers.referralWinnersNumberCount++;
+            }
+        }
+    }
+
+    function markWinnerTickets(uint256 roundId, uint16[] memory ticketIndexes, uint16[] memory referralTicketIndexes) public {
+
+    }
+}
+
+contract LotteryMasterReader {
+    LotteryMaster public lotteryMaster;
+
+    constructor(LotteryMaster _lotteryMaster) {
+        lotteryMaster = _lotteryMaster;
+    }
+
+    function poolForHighVictoryTier(uint256 roundId, RoundVictoryTier victoryTier) public view returns(uint256) {
+        require(victoryTier == RoundVictoryTier.Tier5_1 || victoryTier == RoundVictoryTier.Tier5 || victoryTier == RoundVictoryTier.Tier4_1, "Invalid victory tier");
+        return lotteryMaster.victoryTierAmountFor(roundId, victoryTier);
+    }
+
+    function poolForReferral(uint256 roundId) public view returns(uint256) {
+        return lotteryMaster.victoryTierAmountFor(roundId,RoundVictoryTier.Referrer);
+    }
+
+    function priceForLowVictoryTier(uint256 roundId, RoundVictoryTier victoryTier) public view returns(uint256) {
+        require(victoryTier == RoundVictoryTier.Tier4 || victoryTier == RoundVictoryTier.Tier3_1 || victoryTier == RoundVictoryTier.Tier3, "Invalid victory tier");
+        return lotteryMaster.victoryTierAmountFor(roundId,victoryTier);
+    }
+
+    function tokenHoldersPoolAmount(uint256 roundId) public view returns (uint256) {
+        return lotteryMaster.victoryTierAmountFor(roundId,RoundVictoryTier.TokenHolders);
+    }
+
+    function treasuryPoolAmount(uint256 roundId) public view returns (uint256) {
+        return lotteryMaster.victoryTierAmountFor(roundId,RoundVictoryTier.Treasury);
+    }
+
+    function numberOfReferralWinnersForRound(uint256 roundId) public view returns (uint16) {
+        uint16 referralWinnersForRound = 0;
         unchecked {
-            randomNumbersForReferrals = rounds[roundCount - 1].referralCounts / 10;
+            referralWinnersForRound = lotteryMaster.roundForId(roundId).referralCounts / 10;
         }
-        if (randomNumbersForReferrals == 0 && rounds[roundCount - 1].referralCounts > 0) {
-            randomNumbersForReferrals = 1;
+        if (referralWinnersForRound == 0 && lotteryMaster.roundForId(roundId).referralCounts > 0) {
+            referralWinnersForRound = 1;
         }
-        publicRoundRandomNumbersRequestId[roundCount] = randomizer.requestRandomWords(6 + randomNumbersForReferrals);
+        return referralWinnersForRound;
     }
 
     function existInArrayNumber(uint16 num, uint16[] memory arr) public pure returns (bool) {
@@ -288,95 +350,61 @@ contract LotteryMaster is EmergencyFunctions {
         return returnedNumber;
     }
 
-    function fetchRoundNumbers(uint256 roundId) external onlyOwner {
-        Round storage roundForNumbers = rounds[roundId - 1];
-        require(roundForNumbers.ended == true, "Round should be closed to evaluate the numbers");
-        require(roundForNumbers.powerNumber == 0, "Random numbers already fetched");
-        (bool fulfilled, uint256[] memory randomWords) = randomizer.getRequestStatus(publicRoundRandomNumbersRequestId[roundId]);
-        require(fulfilled, "Random numbers not ready");
-        if (fulfilled) {
-            for (uint i = 0; i < 5; i++) {
-                roundForNumbers.roundNumbers.push(getRandomUniqueNumberInArrayForMaxValue(randomWords[i], 69, roundForNumbers.roundNumbers));
-            }
-            roundForNumbers.powerNumber = uint16(randomWords[5] % 26 + 1);
-            for (uint i = 6; i < randomWords.length; i++) {
-                roundForNumbers.referralWinnersNumber.push(getRandomUniqueNumberInArrayForMaxValue(randomWords[i],
-                    roundForNumbers.referralCounts, roundForNumbers.referralWinnersNumber));
-                roundForNumbers.referralWinnersNumberCount++;
-            }
+
+    function tierFromResults(uint16 rightNumbersForTicket, bool powerNumberFound) public pure returns (RoundVictoryTier) {
+        if (rightNumbersForTicket == 5 && powerNumberFound) {
+            return RoundVictoryTier.Tier5_1;
+        } else if (rightNumbersForTicket == 5) {
+            return RoundVictoryTier.Tier5;
+        } else if (rightNumbersForTicket == 4 && powerNumberFound) {
+            return RoundVictoryTier.Tier4_1;
+        } else if (rightNumbersForTicket == 4) {
+            return RoundVictoryTier.Tier4;
+        } else if (rightNumbersForTicket == 3 && powerNumberFound) {
+            return RoundVictoryTier.Tier3_1;
+        } else if (rightNumbersForTicket == 3) {
+            return RoundVictoryTier.Tier3;
         }
+        return RoundVictoryTier.NO_WIN;
     }
 
-    function markWinnerTickets(uint256 roundId, uint16[] memory ticketIndexes, uint16[] memory referralTicketIndexes) public {
-
+    function evaluateWonResultsForTickets(uint256 roundId) public view returns (TicketResults[] memory){
+        Round memory roundForEvaluation = lotteryMaster.roundForId(roundId);
+        uint16 roundTicketCount = roundForEvaluation.ticketsCount;
+        TicketResults[] memory ticketResults = new TicketResults[](roundForEvaluation.ticketsCount);
+        uint16 counter = 0;
+        for(uint16 ticketIndexForRound = 0; ticketIndexForRound < roundTicketCount; ticketIndexForRound++) {
+            Ticket memory ticket = lotteryMaster.ticketAtIndex(roundForEvaluation.ticketIds[ticketIndexForRound]);
+            bool powerNumberFound = ticket.powerNumber == roundForEvaluation.powerNumber;
+            uint16 rightNumbersForTicket = 0;
+            uint16[] memory ticketNumbers = lotteryMaster.numbersForTicketId(ticket.id);
+            for(uint16 i = 0; i < 5; i++) {
+                uint16 ticketNumber = ticketNumbers[i];
+                if (existInArrayNumber(ticketNumber, roundForEvaluation.roundNumbers)) {
+                    rightNumbersForTicket++;
+                }
+            }
+            ticketResults[counter++] = TicketResults({
+                ticketId: ticket.id,
+                victoryTier: tierFromResults(rightNumbersForTicket, powerNumberFound)
+            });
+        }
+        return ticketResults;
     }
 
-    function evaluateWonAmountForReferralTicket(uint256 roundId, uint256 referralTicketID) public view returns (uint256) {
-//        uint16[] memory referralWinnersNumber = roundForEvaluation.referralWinnersNumber;
-//        bool oneReferralWon = false;
-//        for (uint16 refIndex = 0; refIndex < referralTicketIndexes.length; refIndex++) {
-//            ReferralTicket storage refTicket = roundReferralTickets[roundId][referralTicketIndexes[refIndex]];
-//            if (existInArrayNumber(refTicket.referralTicketNumber, referralWinnersNumber)) {
-//                oneReferralWon = true;
-//                break;
-//            }
-//        }
-//        if (oneReferralWon) {
-//            wonAmount += poolForReferral(roundId);
-//        }
-//        if (tiersWontAmounts5_1 > 0) {
-//            wonAmount += victoryTierAmounts[roundId][RoundVictoryTier.Tier5_1] ;
-//        }
-//        if (tiersWontAmounts5 > 0) {
-//            wonAmount += victoryTierAmounts[roundId][RoundVictoryTier.Tier5] ;
-//        }
-//        if (tiersWontAmounts4_1 > 0) {
-//            wonAmount += victoryTierAmounts[roundId][RoundVictoryTier.Tier4_1] ;
-//        }
-        return 0;
-    }
-
-    function evaluateWonAmountForTicket(uint256 roundId, uint256 ticketId) public view returns (uint256) {
-        uint256 wonAmount = 0;
-//        Round storage roundForEvaluation = rounds[roundId - 1];
-//        uint16[] memory roundNumbers = roundForEvaluation.roundNumbers;
-//        uint16 powerNumber = roundForEvaluation.powerNumber;
-//
-//        uint tiersWontAmounts5_1;
-//        uint tiersWontAmounts5;
-//        uint tiersWontAmounts4_1;
-//        uint tiersWontAmounts4;
-//        uint tiersWontAmounts3_1;
-//        uint tiersWontAmounts3;
-//        for(uint256 ticketId = 0 ; ticketId < ticketIds.length; ticketId++) {
-//            Ticket storage ticket = tickets[ticketIds[ticketId]];
-//            uint16[] memory ticketNumbersForRound = ticketNumbersForRound[ticket.id];
-//            uint16 correctNumbers = 0;
-//            for (uint i = 0; i < ticketNumbersForRound.length; i++) {
-//                if (existInArrayNumber(ticketNumbersForRound[i], roundNumbers)) {
-//                    correctNumbers++;
-//                }
-//            }
-//            bool powerNumberCorrect = ticket.powerNumber == powerNumber;
-//            if (correctNumbers == 5 && powerNumberCorrect) {
-//                tiersWontAmounts5_1++;
-//            } else if (correctNumbers == 5) {
-//                tiersWontAmounts5++;
-//            } else if (correctNumbers == 4 && powerNumberCorrect) {
-//                tiersWontAmounts4_1++;
-//            } else if (correctNumbers == 4) {
-//                tiersWontAmounts4++;
-//            } else if (correctNumbers == 3 && powerNumberCorrect) {
-//                tiersWontAmounts3_1++;
-//            } else if (correctNumbers == 3) {
-//                tiersWontAmounts3++;
-//            }
-//        }
-//
-//        return tiersWontAmounts4 * victoryTierAmounts[roundId][RoundVictoryTier.Tier4] +
-//        tiersWontAmounts3_1 * victoryTierAmounts[roundId][RoundVictoryTier.Tier3_1] +
-//        tiersWontAmounts3 * victoryTierAmounts[roundId][RoundVictoryTier.Tier3] +
-//            wonAmount;
-        return 0;
+    function evaluateWonResultsForReferral(uint256 roundId) public view returns (ReferralTicketResults[] memory) {
+        Round memory roundForEvaluation = lotteryMaster.roundForId(roundId);
+        uint16 roundReferralTicketCount = roundForEvaluation.referralCounts;
+        ReferralTicketResults[] memory referralWinnerIds = new ReferralTicketResults[](roundForEvaluation.referralCounts);
+        uint16 counter = 0;
+        for(uint16 referralIndexForRound = 0; referralIndexForRound < roundReferralTicketCount; referralIndexForRound++) {
+            ReferralTicket memory referralTicket = lotteryMaster.referralTicketAtIndex(roundForEvaluation.referralTicketIds[referralIndexForRound]);
+            bool referralWon = existInArrayNumber(referralTicket.referralTicketNumber, roundForEvaluation.referralWinnersNumber);
+            referralWinnerIds[counter++] = ReferralTicketResults({
+                referralTicketId: referralTicket.id,
+                won: referralWon
+            });
+        }
+        return referralWinnerIds;
     }
 }
