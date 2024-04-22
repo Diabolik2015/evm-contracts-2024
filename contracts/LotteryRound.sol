@@ -16,7 +16,7 @@ contract LotteryRound is EmergencyFunctions {
     }
 
     Ticket[] public tickets;
-    function ticketAtIndex(uint256 ticketId) public view returns (Ticket memory) {
+    function ticketById(uint256 ticketId) public view returns (Ticket memory) {
         return tickets[ticketId];
     }
     mapping(uint256 => uint16[]) public ticketNumbers;
@@ -27,13 +27,14 @@ contract LotteryRound is EmergencyFunctions {
     mapping(address => uint256) public roundTicketsByAddressCount;
 
     ReferralTicket[] public referralTickets;
-    function referralTicketAtIndex(uint256 index) public view returns (ReferralTicket memory) {
+    function referralTicketById(uint256 index) public view returns (ReferralTicket memory) {
         return referralTickets[index];
     }
     mapping(address => uint256[]) public roundReferralTicketsByAddress;
     mapping(address => uint256) public roundReferralTicketsByAddressCount;
 
     mapping(RoundVictoryTier => uint256) public victoryTierAmounts;
+    mapping(RoundVictoryTier => uint256) public winnersForEachTier;
 
     constructor(address previousRoundAddress, uint16 roundDurationInSeconds) EmergencyFunctions(msg.sender) {
         uint256 id = 1;
@@ -86,9 +87,9 @@ contract LotteryRound is EmergencyFunctions {
         uint256 tier5_1 = percentageInBasisPoint(forPublicPool, 3500) ;
         uint256 tier5 = percentageInBasisPoint(forPublicPool, 1500);
         uint256 tier4_1 = percentageInBasisPoint(forPublicPool, 1000);
-        uint256 tier4 = percentageInBasisPoint(forPublicPool, 500);
-        uint256 tier3_1 = percentageInBasisPoint(forPublicPool, 200);
-        uint256 tier3 = percentageInBasisPoint(forPublicPool, 20);
+        uint256 tier4 = percentageInBasisPoint(forPublicPool, 7000);
+        uint256 tier3_1 = percentageInBasisPoint(forPublicPool, 5000);
+        uint256 tier3 = percentageInBasisPoint(forPublicPool, 3000);
         uint256 publicPool = forPublicPool;
         uint256 referrer = percentageInBasisPoint(paymentTokenAmount, 1500);
         uint256 tokenHoldersPool = percentageInBasisPoint(paymentTokenAmount, 1000);
@@ -111,7 +112,7 @@ contract LotteryRound is EmergencyFunctions {
         uint256 ticketId = tickets.length;
         tickets.push(Ticket({
             id: ticketId,
-            participantAddress: msg.sender,
+            participantAddress: tx.origin,
             referralAddress: referral,
             claimed: false,
             chainId: chainId,
@@ -132,7 +133,7 @@ contract LotteryRound is EmergencyFunctions {
             round.referralCounts++;
             referralTickets.push(ReferralTicket({
                 id: referralTicketId,
-                referralAddress: msg.sender,
+                referralAddress: referral,
                 referralTicketNumber: uint16(round.referralCounts),
                 winner: false,
                 claimed: false
@@ -158,5 +159,32 @@ contract LotteryRound is EmergencyFunctions {
         round.powerNumber = powerNumber;
         round.referralWinnersNumber = referralWinnersNumber;
         round.referralWinnersNumberCount = uint16(referralWinnersNumber.length);
+    }
+
+    function markWinners(TicketResults[] memory ticketResults, ReferralTicketResults[] memory referralTicketResults) public onlyOwner {
+        for (uint i = 0; i < ticketResults.length; i++) {
+            TicketResults memory ticketResult = ticketResults[i];
+            Ticket storage ticket = tickets[ticketResult.ticketId];
+            ticket.victoryTier = ticketResult.victoryTier;
+            winnersForEachTier[ticketResult.victoryTier]++;
+        }
+        for (uint i = 0; i < referralTicketResults.length; i++) {
+            ReferralTicketResults memory referralTicketResult = referralTicketResults[i];
+            ReferralTicket storage referralTicket = referralTickets[referralTicketResult.referralTicketId];
+            referralTicket.winner = referralTicketResult.won;
+            if (referralTicketResult.won) {
+                winnersForEachTier[RoundVictoryTier.Referrer]++;
+            }
+        }
+    }
+
+    function markVictoryClaimed(uint256 ticketId) public onlyOwner {
+        Ticket storage ticket = tickets[ticketId];
+        ticket.claimed = true;
+    }
+
+    function markReferralVictoryClaimed(uint256 referralTicketId) public onlyOwner {
+        ReferralTicket storage referralTicket = referralTickets[referralTicketId];
+        referralTicket.claimed = true;
     }
 }

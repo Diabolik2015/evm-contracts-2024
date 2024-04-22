@@ -9,8 +9,8 @@ pragma solidity ^0.8.20;
         Tier4,
         Tier3_1,
         Tier3,
-        PublicPool,
         Referrer,
+        PublicPool,
         TokenHolders,
         Treasury
     }
