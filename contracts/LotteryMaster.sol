@@ -8,13 +8,13 @@ import {CyclixRandomizerInterface} from "./CyclixRandomizerInterface.sol";
 import {EmergencyFunctions} from "./utils/EmergencyFunctions.sol";
 
     enum RoundVictoryTier {
+        NO_WIN,
         Tier5_1,
         Tier5,
         Tier4_1,
         Tier4,
         Tier3_1,
         Tier3,
-        NO_WIN,
         PublicPool,
         Referrer,
         TokenHolders,
@@ -40,7 +40,6 @@ import {EmergencyFunctions} from "./utils/EmergencyFunctions.sol";
         uint256 id;
         address participantAddress;
         address referralAddress;
-        bool winner;
         bool claimed;
         uint256 chainId;
         RoundVictoryTier victoryTier;
@@ -76,6 +75,7 @@ contract LotteryMaster is EmergencyFunctions {
     function getCurrentRound() public view returns (Round memory) {
         return rounds[roundCount - 1];
     }
+    mapping(uint256 => mapping(RoundVictoryTier => uint256)) winnersCountByTier;
     Ticket[] public tickets;
     function ticketAtIndex(uint256 ticketId) public view returns (Ticket memory) {
         return tickets[ticketId];
@@ -215,7 +215,6 @@ contract LotteryMaster is EmergencyFunctions {
             id: ticketId,
             participantAddress: msg.sender,
             referralAddress: referral,
-            winner: false,
             claimed: false,
             chainId: chainId,
             victoryTier: RoundVictoryTier.NO_WIN,
@@ -280,8 +279,26 @@ contract LotteryMaster is EmergencyFunctions {
         }
     }
 
-    function markWinnerTickets(uint256 roundId, uint16[] memory ticketIndexes, uint16[] memory referralTicketIndexes) public {
+    function markWinners(uint256 roundId) public onlyOwner {
+        TicketResults[] memory ticketResults = reader.evaluateWonResultsForTickets(roundId);
+        for(uint16 i = 0; i < ticketResults.length; i++) {
+            TicketResults memory ticketResult = ticketResults[i];
+            Ticket storage ticket = tickets[ticketResult.ticketId - 1];
+            if (ticketResult.victoryTier != RoundVictoryTier.NO_WIN) {
+                ticket.victoryTier = ticketResult.victoryTier;
+                winnersCountByTier[roundId][ticketResult.victoryTier]++;
+            }
+        }
 
+        ReferralTicketResults[] memory referralTicketResults = reader.evaluateWonResultsForReferral(roundId);
+        for(uint16 i = 0; i < referralTicketResults.length; i++) {
+            ReferralTicketResults memory referralTicketResult = referralTicketResults[i];
+            ReferralTicket storage referralTicket = referralTickets[referralTicketResult.referralTicketId - 1];
+            if (referralTicketResult.won) {
+                referralTicket.winner = true;
+                winnersCountByTier[roundId][RoundVictoryTier.Referrer]++;
+            }
+        }
     }
 }
 

@@ -134,22 +134,20 @@ describe("Lottery Master", function () {
   }
 
   function tierIndexToName(index: number) {
-    if (index < 0) {
+    if (index == 0) {
       return "NO_WIN"
-    } else if (index === 0) {
-      return "Tier5_1"
     } else if (index === 1) {
-      return "Tier5"
+      return "Tier5_1"
     } else if (index === 2) {
-      return "Tier4_1"
+      return "Tier5"
     } else if (index === 3) {
-      return "Tier4"
+      return "Tier4_1"
     } else if (index === 4) {
-      return "Tier3_1"
+      return "Tier4"
     } else if (index === 5) {
-      return "Tier3"
+      return "Tier3_1"
     } else if (index === 6) {
-      return "NO_WIN"
+      return "Tier3"
     }
   }
 
@@ -323,6 +321,9 @@ describe("Lottery Master", function () {
       const referralResultsOffChain = await computeReferralResultsOffChain(roundId, lotteryMaster)
       let referralResultsFromChain = await lotteryMasterReader.evaluateWonResultsForReferral(roundId);
       expect(referralResultsOffChain).to.deep.equal(referralResultsFromChain)
+
+      await lotteryMaster.markWinners(roundId)
+      expect(await lotteryMaster.winnersCountByTier(roundId, 0)).to.equal(2)
     })
 
     it("Should be able to retain referrals", async function () {
