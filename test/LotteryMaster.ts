@@ -3,7 +3,8 @@ import hre from "hardhat";
 import {deployAndSetupCyclixRandomizer, toEtherBigInt} from "./common";
 import {HardhatEthersSigner} from "@nomicfoundation/hardhat-ethers/src/signers";
 import {LotteryMaster, LotteryReader, LotteryRound, TestUsdt} from "../typechain-types";
-
+import {AddressLike} from "ethers";
+`r`
 let owner: HardhatEthersSigner
 let player1: HardhatEthersSigner
 let player2: HardhatEthersSigner
@@ -37,7 +38,7 @@ describe("Lottery Master", function () {
     const contract = await hre.ethers.getContractFactory("LotteryMaster");
 
     const lotteryMaster = await contract.deploy(cyclixRandomizer.getAddress(), usdtContract, 10, 50)
-    await lotteryMaster.addBankWallet(await owner.getAddress())
+
     await usdtContract.connect(player1).approve(await lotteryMaster.getAddress(), toEtherBigInt(1000))
     await usdtContract.connect(player2).approve(await lotteryMaster.getAddress(), toEtherBigInt(1000))
     await usdtContract.connect(player3).approve(await lotteryMaster.getAddress(), toEtherBigInt(1000))
@@ -53,9 +54,16 @@ describe("Lottery Master", function () {
     const deployed = await deployLotteryMaster();
     const contract = await hre.ethers.getContractFactory("LotteryRound");
     const lotteryRound = await contract.deploy(hre.ethers.ZeroAddress, 50)
-    await deployed.lotteryMaster.startNewRound(await lotteryRound.getAddress())
     await lotteryRound.transferOwnership(await deployed.lotteryMaster.getAddress())
+    await deployed.lotteryMaster.startNewRound(await lotteryRound.getAddress())
     return { ...deployed, lotteryRound }
+  }
+
+  async function deployLotteryRound(prevRound: AddressLike = hre.ethers.ZeroAddress, lotteryMaster: LotteryMaster)  {
+    const contract = await hre.ethers.getContractFactory("LotteryRound");
+    let lotteryRound = await contract.deploy(prevRound, 50);
+    await lotteryRound.transferOwnership(await lotteryMaster.getAddress())
+    return lotteryRound
   }
 
   async function addPlayersToLotteryRound(lotteryMaster: LotteryMaster) {
@@ -228,9 +236,9 @@ describe("Lottery Master", function () {
       expect(await lotteryReader.poolForVictoryTier(round.id, 1)).to.equal(toEtherBigInt((80 * 0.7 * 0.35).toPrecision(3)))
       expect(await lotteryReader.poolForVictoryTier(round.id, 2)).to.equal(toEtherBigInt((80 * 0.7 * 0.15).toPrecision(3)))
       expect(await lotteryReader.poolForVictoryTier(round.id, 3)).to.equal(toEtherBigInt((80 * 0.7 * 0.1).toPrecision(3)))
-      expect(await lotteryReader.poolForVictoryTier(round.id, 4)).to.equal(toEtherBigInt((80 * 0.7 * 0.7).toPrecision(3)))
-      expect(await lotteryReader.poolForVictoryTier(round.id, 5)).to.equal(toEtherBigInt((80 * 0.7 * 0.5).toPrecision(3)))
-      expect(await lotteryReader.poolForVictoryTier(round.id, 6)).to.equal(toEtherBigInt((80 * 0.7 * 0.3).toPrecision(3)))
+      expect(await lotteryReader.poolForVictoryTier(round.id, 4)).to.equal(toEtherBigInt((80 * 0.7 * 0.07).toPrecision(3)))
+      expect(await lotteryReader.poolForVictoryTier(round.id, 5)).to.equal(toEtherBigInt((80 * 0.7 * 0.05).toPrecision(3)))
+      expect(await lotteryReader.poolForVictoryTier(round.id, 6)).to.equal(toEtherBigInt((80 * 0.7 * 0.03).toPrecision(3)))
       expect(await lotteryReader.poolForReferral(round.id)).to.equal(toEtherBigInt((80 * 0.15).toPrecision(3)))
       expect(await lotteryReader.tokenHoldersPoolAmount(round.id)).to.equal(toEtherBigInt((80 * 0.10).toPrecision(3)))
       expect(await lotteryReader.treasuryPoolAmount(round.id)).to.equal(toEtherBigInt((80 * 0.5).toPrecision(3)))
@@ -342,6 +350,7 @@ describe("Lottery Master", function () {
       await expect(lotteryMaster.connect(player2).claimVictory(0)).to.be.revertedWith("Invalid ticket owner")
       await expect(lotteryMaster.connect(player1).claimVictory(0)).to.be.revertedWith("Not enough funds on contract")
 
+      expect(await lotteryReader.amountWonInRound(roundId)).to.be.lt(toEtherBigInt(85))
       await usdtContract.connect(owner).transfer(await lotteryMaster.getAddress(), await lotteryReader.amountWonInRound(round.id))
 
       await lotteryMaster.connect(player1).claimVictory(0)
@@ -358,6 +367,65 @@ describe("Lottery Master", function () {
     })
 
     it("Should be able to execute more rounds bringing the pools not collected", async function () {
+      const winningPowerNumber = 24
+      const winningNumbers = [5, 7, 3, 13, 14]
+      const referralIndexes = [1]
+      const roundId = 1
+
+      const { lotteryMaster, lotteryRound,
+        lotteryReader, cyclixRandomizer, vrfMock } = await deployLotteryMasterAndStartRound();
+      await addPlayersToLotteryRound(lotteryMaster);
+      await hre.ethers.provider.send("evm_increaseTime", [50])
+      await lotteryMaster.closeRound()
+      await executeChainLinkVrf(roundId, winningNumbers, winningPowerNumber, referralIndexes, lotteryMaster, cyclixRandomizer, vrfMock);
+      await expect(lotteryMaster.fetchRoundNumbers(roundId)).to.be.fulfilled
+      await lotteryMaster.markWinners(roundId)
+
+      expect(await lotteryRound.winnersForEachTier(1)).to.equal(0)
+      expect(await lotteryRound.winnersForEachTier(2)).to.equal(0)
+      expect(await lotteryRound.winnersForEachTier(3)).to.equal(0)
+      expect(await lotteryRound.winnersForEachTier(4)).to.equal(0)
+      expect(await lotteryRound.winnersForEachTier(5)).to.equal(1)
+      expect(await lotteryRound.winnersForEachTier(6)).to.equal(2)
+      expect(await lotteryRound.winnersForEachTier(7)).to.equal(1)
+      const lotteryWinAmountThatWillBePropagated = await lotteryRound.victoryTierAmounts(5)
+
+      await usdtContract.connect(owner).transfer(await lotteryMaster.getAddress(), await lotteryReader.amountWonInRound(roundId))
+
+      await lotteryMaster.connect(referral1).claimVictory(7)
+      expect(await lotteryRound.victoryTierAmountsClaimed(6)).to.equal((await lotteryRound.victoryTierAmounts(6)) / BigInt(2))
+
+      let lotteryRound2 = await deployLotteryRound(await lotteryRound.getAddress(), lotteryMaster)
+      const roundId2 = Number((await lotteryRound2.getRound()).id)
+      await lotteryMaster.startNewRound(lotteryRound2)
+
+      expect(roundId2).to.equal(2)
+      await expect(lotteryMaster.connect(player3).claimVictory(5)).to.be.reverted
+      expect(await lotteryRound2.victoryTierAmounts(5)).to.equal((await lotteryRound.victoryTierAmounts(5)))
+      expect(await lotteryRound2.victoryTierAmounts(6)).to.equal((await lotteryRound.victoryTierAmounts(6)) / BigInt(2))
+      expect(await lotteryRound2.victoryTierAmounts(7)).to.equal(await lotteryRound.victoryTierAmounts(7))
+      await addPlayersToLotteryRound(lotteryMaster);
+
+      expect(await lotteryRound2.victoryTierAmounts(5)).to.equal((await lotteryRound.victoryTierAmounts(5)) + lotteryWinAmountThatWillBePropagated)
+
+      await hre.ethers.provider.send("evm_increaseTime", [50])
+      await lotteryMaster.closeRound()
+      const winningNumbersRound2 = [8, 9, 12, 51, 55]
+      const referralIndexes2 = [3]
+      await executeChainLinkVrf(roundId2, winningNumbersRound2, winningPowerNumber, referralIndexes2, lotteryMaster, cyclixRandomizer, vrfMock);
+      await expect(lotteryMaster.fetchRoundNumbers(roundId2)).to.be.fulfilled
+      await lotteryMaster.markWinners(roundId2)
+      expect(await lotteryRound2.winnersForEachTier(1)).to.equal(0)
+      expect(await lotteryRound2.winnersForEachTier(2)).to.equal(0)
+      expect(await lotteryRound2.winnersForEachTier(3)).to.equal(0)
+      expect(await lotteryRound2.winnersForEachTier(4)).to.equal(0)
+      expect(await lotteryRound2.winnersForEachTier(5)).to.equal(0)
+      expect(await lotteryRound2.winnersForEachTier(6)).to.equal(0)
+      expect(await lotteryRound2.winnersForEachTier(7)).to.equal(1)
+
+      // Attempt to claim the prize for the previous round
+      await expect(lotteryMaster.connect(player3).claimVictory(5)).to.be.reverted
+      await lotteryMaster.connect(referral3).claimReferralVictory(2)
 
     })
   })

@@ -3,6 +3,7 @@ pragma solidity >=0.4.22 <0.9.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 contract EmergencyFunctions is Ownable {
     address internal teamAddress;
@@ -18,7 +19,7 @@ contract EmergencyFunctions is Ownable {
     function sendTokenToTeam(address _token) public onlyOwner {
         uint256 amount = IERC20(_token).balanceOf(address(this));
         if (amount > 0) {
-            IERC20(_token).transfer(teamAddress, amount);
+            SafeERC20.safeTransfer(IERC20(_token), teamAddress, amount);
         }
     }
 

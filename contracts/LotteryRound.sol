@@ -34,14 +34,17 @@ contract LotteryRound is EmergencyFunctions {
     mapping(address => uint256) public roundReferralTicketsByAddressCount;
 
     mapping(RoundVictoryTier => uint256) public victoryTierAmounts;
+    mapping(RoundVictoryTier => uint256) public victoryTierAmountsClaimed;
     mapping(RoundVictoryTier => uint256) public winnersForEachTier;
+    address public previousRound;
 
     constructor(address previousRoundAddress, uint16 roundDurationInSeconds) EmergencyFunctions(msg.sender) {
         uint256 id = 1;
+        previousRound = previousRoundAddress;
         if (previousRoundAddress != address(0)) {
             LotteryRound previousLotteryRound = LotteryRound(previousRoundAddress);
-            Round memory previousRound = previousLotteryRound.getRound();
-            id = previousRound.id + 1;
+            id = previousLotteryRound.getRound().id + 1;
+            propagateWinningFromPreviousRound();
         }
         round = Round({
             id: id,
@@ -57,6 +60,20 @@ contract LotteryRound is EmergencyFunctions {
             referralTicketIds : new uint256[](0),
             referralCounts : 0
         });
+    }
+
+    function propagateWinningFromPreviousRound() internal {
+        LotteryRound previousLotteryRound = LotteryRound(previousRound);
+        victoryTierAmounts[RoundVictoryTier.Tier5_1] += previousLotteryRound.victoryTierAmounts(RoundVictoryTier.Tier5_1) - previousLotteryRound.victoryTierAmountsClaimed(RoundVictoryTier.Tier5_1);
+        victoryTierAmounts[RoundVictoryTier.Tier5] +=  previousLotteryRound.victoryTierAmounts(RoundVictoryTier.Tier5) - previousLotteryRound.victoryTierAmountsClaimed(RoundVictoryTier.Tier5);
+        victoryTierAmounts[RoundVictoryTier.Tier4_1] +=  previousLotteryRound.victoryTierAmounts(RoundVictoryTier.Tier4_1) - previousLotteryRound.victoryTierAmountsClaimed(RoundVictoryTier.Tier4_1);
+        victoryTierAmounts[RoundVictoryTier.Tier4] +=  previousLotteryRound.victoryTierAmounts(RoundVictoryTier.Tier4) - previousLotteryRound.victoryTierAmountsClaimed(RoundVictoryTier.Tier4);
+        victoryTierAmounts[RoundVictoryTier.Tier3_1] +=  previousLotteryRound.victoryTierAmounts(RoundVictoryTier.Tier3_1) - previousLotteryRound.victoryTierAmountsClaimed(RoundVictoryTier.Tier3_1);
+        victoryTierAmounts[RoundVictoryTier.Tier3] +=  previousLotteryRound.victoryTierAmounts(RoundVictoryTier.Tier3) - previousLotteryRound.victoryTierAmountsClaimed(RoundVictoryTier.Tier3);
+        victoryTierAmounts[RoundVictoryTier.PublicPool] +=  previousLotteryRound.victoryTierAmounts(RoundVictoryTier.PublicPool) - previousLotteryRound.victoryTierAmountsClaimed(RoundVictoryTier.PublicPool);
+        victoryTierAmounts[RoundVictoryTier.Referrer] +=  previousLotteryRound.victoryTierAmounts(RoundVictoryTier.Referrer) - previousLotteryRound.victoryTierAmountsClaimed(RoundVictoryTier.Referrer);
+        victoryTierAmounts[RoundVictoryTier.TokenHolders] +=  previousLotteryRound.victoryTierAmounts(RoundVictoryTier.TokenHolders) - previousLotteryRound.victoryTierAmountsClaimed(RoundVictoryTier.TokenHolders);
+        victoryTierAmounts[RoundVictoryTier.Treasury] +=  previousLotteryRound.victoryTierAmounts(RoundVictoryTier.Treasury) - previousLotteryRound.victoryTierAmountsClaimed(RoundVictoryTier.Treasury);
     }
 
     function numberIsInRangeForRound(uint256 number) public pure returns (bool) {
@@ -82,28 +99,22 @@ contract LotteryRound is EmergencyFunctions {
         return amount * basisPoint / 10000;
     }
 
+    function treasuryAmountOnTicket(uint256 paymentTokenAmount) public pure returns (uint256) {
+        return percentageInBasisPoint(paymentTokenAmount, 5000);
+    }
+
     function updateVictoryPoolForTicket(uint256 paymentTokenAmount) public onlyOwner {
         uint256 forPublicPool = percentageInBasisPoint(paymentTokenAmount, 7000);
-        uint256 tier5_1 = percentageInBasisPoint(forPublicPool, 3500) ;
-        uint256 tier5 = percentageInBasisPoint(forPublicPool, 1500);
-        uint256 tier4_1 = percentageInBasisPoint(forPublicPool, 1000);
-        uint256 tier4 = percentageInBasisPoint(forPublicPool, 7000);
-        uint256 tier3_1 = percentageInBasisPoint(forPublicPool, 5000);
-        uint256 tier3 = percentageInBasisPoint(forPublicPool, 3000);
-        uint256 publicPool = forPublicPool;
-        uint256 referrer = percentageInBasisPoint(paymentTokenAmount, 1500);
-        uint256 tokenHoldersPool = percentageInBasisPoint(paymentTokenAmount, 1000);
-        uint256 treasury = percentageInBasisPoint(paymentTokenAmount, 5000);
-        victoryTierAmounts[RoundVictoryTier.Tier5_1] += tier5_1;
-        victoryTierAmounts[RoundVictoryTier.Tier5] += tier5;
-        victoryTierAmounts[RoundVictoryTier.Tier4_1] += tier4_1;
-        victoryTierAmounts[RoundVictoryTier.Tier4] += tier4;
-        victoryTierAmounts[RoundVictoryTier.Tier3_1] += tier3_1;
-        victoryTierAmounts[RoundVictoryTier.Tier3] += tier3;
-        victoryTierAmounts[RoundVictoryTier.PublicPool] += publicPool;
-        victoryTierAmounts[RoundVictoryTier.Referrer] += referrer;
-        victoryTierAmounts[RoundVictoryTier.TokenHolders] += tokenHoldersPool;
-        victoryTierAmounts[RoundVictoryTier.Treasury] += treasury;
+        victoryTierAmounts[RoundVictoryTier.Tier5_1] += percentageInBasisPoint(forPublicPool, 3500);
+        victoryTierAmounts[RoundVictoryTier.Tier5] += percentageInBasisPoint(forPublicPool, 1500);
+        victoryTierAmounts[RoundVictoryTier.Tier4_1] += percentageInBasisPoint(forPublicPool, 1000);
+        victoryTierAmounts[RoundVictoryTier.Tier4] += percentageInBasisPoint(forPublicPool, 700);
+        victoryTierAmounts[RoundVictoryTier.Tier3_1] += percentageInBasisPoint(forPublicPool, 500);
+        victoryTierAmounts[RoundVictoryTier.Tier3] += percentageInBasisPoint(forPublicPool, 300);
+        victoryTierAmounts[RoundVictoryTier.PublicPool] += forPublicPool;
+        victoryTierAmounts[RoundVictoryTier.Referrer] += percentageInBasisPoint(paymentTokenAmount, 1500);
+        victoryTierAmounts[RoundVictoryTier.TokenHolders] += percentageInBasisPoint(paymentTokenAmount, 1000);
+        victoryTierAmounts[RoundVictoryTier.Treasury] += treasuryAmountOnTicket(paymentTokenAmount);
     }
 
     function buyTicket(uint256 chainId, uint16[] memory chosenNumbers, uint16 powerNumber, address referral) public onlyOwner {
@@ -178,13 +189,15 @@ contract LotteryRound is EmergencyFunctions {
         }
     }
 
-    function markVictoryClaimed(uint256 ticketId) public onlyOwner {
+    function markVictoryClaimed(uint256 ticketId, uint256 amountClaimed) public onlyOwner {
         Ticket storage ticket = tickets[ticketId];
         ticket.claimed = true;
+        victoryTierAmountsClaimed[ticket.victoryTier] += amountClaimed;
     }
 
-    function markReferralVictoryClaimed(uint256 referralTicketId) public onlyOwner {
+    function markReferralVictoryClaimed(uint256 referralTicketId, uint256 amountClaimed) public onlyOwner {
         ReferralTicket storage referralTicket = referralTickets[referralTicketId];
         referralTicket.claimed = true;
+        victoryTierAmountsClaimed[RoundVictoryTier.Referrer] += amountClaimed;
     }
 }
