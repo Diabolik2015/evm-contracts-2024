@@ -4,6 +4,7 @@ import {deployAndSetupCyclixRandomizer, toEtherBigInt} from "./common";
 import {HardhatEthersSigner} from "@nomicfoundation/hardhat-ethers/src/signers";
 import {LotteryMaster, LotteryReader, LotteryRound, TestUsdt} from "../typechain-types";
 import {AddressLike} from "ethers";
+import {VRFCoordinatorV2Mock} from "../typechain-types/contracts/testing";
 `r`
 let owner: HardhatEthersSigner
 let player1: HardhatEthersSigner
@@ -80,7 +81,7 @@ describe("Lottery Master", function () {
   }
 
   async function executeChainLinkVrf(roundId: number, winningNumbers: number[], winningPowerNumber: number, referralIndexes: number[],
-                                     lotteryMaster: any, cyclixRandomizer: any, vrfMock: any) {
+                                     lotteryMaster: any, cyclixRandomizer: any, vrfMock: VRFCoordinatorV2Mock) {
     const wordsFromVrf = []
     for (const winningNumber of winningNumbers) {
       wordsFromVrf.push(winningNumber - 1)

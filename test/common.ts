@@ -1,7 +1,8 @@
 import hre from "hardhat";
 import {BigNumberish} from "ethers/lib.esm";
+import { VRFCoordinatorV2Mock } from "../typechain-types/contracts/testing";
 
-export async function deployVrfCoordinatorMock() {
+export async function deployVrfCoordinatorMock(): Promise<VRFCoordinatorV2Mock> {
     const VRFMock = await hre.ethers.getContractFactory("VRFCoordinatorV2Mock");
     const _BASE_FEE= BigInt(10 ** 17)
     const _GAS_PRICE_LINK= BigInt(10 ** 9)
