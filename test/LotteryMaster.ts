@@ -4,7 +4,7 @@ import {deployAndSetupCyclixRandomizer, toEtherBigInt} from "./common";
 import {HardhatEthersSigner} from "@nomicfoundation/hardhat-ethers/src/signers";
 import {LotteryMaster, LotteryReader, LotteryRound, TestUsdt} from "../typechain-types";
 import {AddressLike} from "ethers";
-import {VRFCoordinatorV2Mock} from "../typechain-types/contracts/testing";
+import {VRFCoordinatorV2Mock} from "../typechain-types";
 `r`
 let owner: HardhatEthersSigner
 let player1: HardhatEthersSigner
@@ -20,7 +20,7 @@ describe("Lottery Master", function () {
   async function deployLotteryMaster() {
     const { cyclixRandomizer, vrfMock } = await deployAndSetupCyclixRandomizer();
     const usdt = await hre.ethers.getContractFactory("TestUsdt");
-    usdtContract = await usdt.deploy(10 ** 6);
+    usdtContract = await usdt.deploy();
     // @ts-ignore
     [owner, player1, player2, player3, referral1, referral2, referral3 ] = await hre.ethers.getSigners()
 
@@ -35,10 +35,12 @@ describe("Lottery Master", function () {
       await usdtContract.transfer(signers[i].address, toEtherBigInt(1000))
     }
 
+    const lotteryReaderFactory = await hre.ethers.getContractFactory("LotteryReader");
+    const lotteryReader = await lotteryReaderFactory.deploy();
 
-    const contract = await hre.ethers.getContractFactory("LotteryMaster");
-
-    const lotteryMaster = await contract.deploy(cyclixRandomizer.getAddress(), usdtContract, 10, 50)
+    const lotterMasterFactory = await hre.ethers.getContractFactory("LotteryMaster");
+    const lotteryMaster = await lotterMasterFactory.deploy(cyclixRandomizer.getAddress(), lotteryReader.getAddress(), usdtContract, 10)
+    await lotteryReader.setLotteryMaster(lotteryMaster.getAddress());
 
     await usdtContract.connect(player1).approve(await lotteryMaster.getAddress(), toEtherBigInt(1000))
     await usdtContract.connect(player2).approve(await lotteryMaster.getAddress(), toEtherBigInt(1000))
@@ -46,8 +48,6 @@ describe("Lottery Master", function () {
     await usdtContract.connect(referral1).approve(await lotteryMaster.getAddress(), toEtherBigInt(1000))
     await usdtContract.connect(referral2).approve(await lotteryMaster.getAddress(), toEtherBigInt(1000))
     await usdtContract.connect(referral3).approve(await lotteryMaster.getAddress(), toEtherBigInt(1000))
-    let lotteryReaderFactory = await hre.ethers.getContractFactory("LotteryReader");
-    const lotteryReader = lotteryReaderFactory.attach(await lotteryMaster.reader()) as LotteryReader;
     return { lotteryMaster, lotteryReader,  cyclixRandomizer, vrfMock };
   }
 

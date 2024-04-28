@@ -4,40 +4,41 @@ pragma solidity ^0.8.20;
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {TestFunctions} from "./utils/TestUtils.sol";
-import {CyclixRandomizerInterface} from "./CyclixRandomizerInterface.sol";
 import {EmergencyFunctions} from "./utils/EmergencyFunctions.sol";
 import { RoundVictoryTier, Round, Ticket, TicketResults, ReferralTicket, ReferralTicketResults } from "./LotteryCommon.sol";
 import { LotteryRound } from "./LotteryRound.sol";
 import { LotteryMaster } from "./LotteryMaster.sol";
+import {LotteryReaderInterface} from "./LotteryReaderInterface.sol";
 
-contract LotteryReader is EmergencyFunctions {
+contract LotteryReader is LotteryReaderInterface, EmergencyFunctions {
     LotteryMaster public lotteryMaster;
 
-    constructor(LotteryMaster _lotteryMaster)
-    EmergencyFunctions(tx.origin) {
-        lotteryMaster = _lotteryMaster;
+    function setLotteryMaster(address _lotteryMaster) public onlyOwner {
+        lotteryMaster = LotteryMaster(_lotteryMaster);
     }
 
-    function poolForVictoryTier(uint256 roundId, RoundVictoryTier victoryTier) public view returns(uint256) {
+    constructor() EmergencyFunctions(tx.origin) {}
+
+    function poolForVictoryTier(uint256 roundId, RoundVictoryTier victoryTier) public view override returns(uint256) {
         require(victoryTier == RoundVictoryTier.Tier5_1 || victoryTier == RoundVictoryTier.Tier5 || victoryTier == RoundVictoryTier.Tier4_1 ||
         victoryTier == RoundVictoryTier.Tier4 || victoryTier == RoundVictoryTier.Tier3_1 || victoryTier == RoundVictoryTier.Tier3,
             "Invalid victory tier");
         return LotteryRound(lotteryMaster.rounds(roundId -1)).victoryTierAmounts(victoryTier);
     }
 
-    function poolForReferral(uint256 roundId) public view returns(uint256) {
+    function poolForReferral(uint256 roundId) public view override returns(uint256) {
         return LotteryRound(lotteryMaster.rounds(roundId -1)).victoryTierAmounts(RoundVictoryTier.Referrer);
     }
 
-    function tokenHoldersPoolAmount(uint256 roundId) public view returns (uint256) {
+    function tokenHoldersPoolAmount(uint256 roundId) public view override returns (uint256) {
         return LotteryRound(lotteryMaster.rounds(roundId -1)).victoryTierAmounts(RoundVictoryTier.TokenHolders);
     }
 
-    function treasuryPoolAmount(uint256 roundId) public view returns (uint256) {
+    function treasuryPoolAmount(uint256 roundId) public view override returns (uint256) {
         return LotteryRound(lotteryMaster.rounds(roundId -1)).victoryTierAmounts(RoundVictoryTier.Treasury);
     }
 
-    function numberOfReferralWinnersForRoundId(uint256 roundId) public view returns (uint16) {
+    function numberOfReferralWinnersForRoundId(uint256 roundId) public view override returns (uint16) {
         uint16 referralWinnersForRound = 0;
         uint16 referralCounts = LotteryRound(lotteryMaster.rounds(roundId -1)).getRound().referralCounts;
         unchecked {
@@ -49,7 +50,7 @@ contract LotteryReader is EmergencyFunctions {
         return referralWinnersForRound;
     }
 
-    function existInArrayNumber(uint16 num, uint16[] memory arr) public pure returns (bool) {
+    function existInArrayNumber(uint16 num, uint16[] memory arr) public pure override returns (bool) {
         for (uint i = 0; i < arr.length; i++) {
             if (arr[i] == num) {
                 return true;
@@ -58,11 +59,11 @@ contract LotteryReader is EmergencyFunctions {
         return false;
     }
 
-    function notExistInArrayNumber(uint16 num, uint16[] memory arr) public pure returns (bool) {
+    function notExistInArrayNumber(uint16 num, uint16[] memory arr) public pure override returns (bool) {
         return existInArrayNumber(num, arr) == false;
     }
 
-    function getRandomUniqueNumberInArrayForMaxValue(uint256 randomNumber, uint16 maxValue, uint16[] memory arr) public pure returns (uint16) {
+    function getRandomUniqueNumberInArrayForMaxValue(uint256 randomNumber, uint16 maxValue, uint16[] memory arr) public pure override returns (uint16) {
         uint16 returnedNumber = uint16(randomNumber % maxValue + 1);
         uint16 counter = 0;
         bool existInNumbers = existInArrayNumber(returnedNumber, arr);
@@ -75,7 +76,7 @@ contract LotteryReader is EmergencyFunctions {
     }
 
 
-    function tierFromResults(uint16 rightNumbersForTicket, bool powerNumberFound) public pure returns (RoundVictoryTier) {
+    function tierFromResults(uint16 rightNumbersForTicket, bool powerNumberFound) public pure override returns (RoundVictoryTier) {
         if (rightNumbersForTicket == 5 && powerNumberFound) {
             return RoundVictoryTier.Tier5_1;
         } else if (rightNumbersForTicket == 5) {
@@ -92,7 +93,7 @@ contract LotteryReader is EmergencyFunctions {
         return RoundVictoryTier.NO_WIN;
     }
 
-    function evaluateWonResultsForOneTicket(uint256 roundId, uint256 ticketId) public view returns (TicketResults memory){
+    function evaluateWonResultsForOneTicket(uint256 roundId, uint256 ticketId) public view override returns (TicketResults memory){
         LotteryRound lotteryRound = LotteryRound(lotteryMaster.roundForId(roundId));
         Round memory roundForEvaluation = lotteryRound.getRound();
         Ticket memory ticket = lotteryRound.ticketById(roundForEvaluation.ticketIds[ticketId]);
@@ -111,7 +112,7 @@ contract LotteryReader is EmergencyFunctions {
         });
     }
 
-    function evaluateWonResultsForTickets(uint256 roundId) public view returns (TicketResults[] memory){
+    function evaluateWonResultsForTickets(uint256 roundId) public view override returns (TicketResults[] memory){
         LotteryRound lotteryRound = LotteryRound(lotteryMaster.roundForId(roundId));
         Round memory roundForEvaluation = lotteryRound.getRound();
         uint16 roundTicketCount = roundForEvaluation.ticketsCount;
@@ -136,7 +137,7 @@ contract LotteryReader is EmergencyFunctions {
         return ticketResults;
     }
 
-    function evaluateWonResultsForOneReferralTicket(uint256 roundId, uint256 referralTicketId) public view returns (ReferralTicketResults memory) {
+    function evaluateWonResultsForOneReferralTicket(uint256 roundId, uint256 referralTicketId) public view override returns (ReferralTicketResults memory) {
         LotteryRound lotteryRound = LotteryRound(lotteryMaster.roundForId(roundId));
         Round memory roundForEvaluation = lotteryRound.getRound();
         ReferralTicket memory referralTicket = lotteryRound.referralTicketById(roundForEvaluation.referralTicketIds[referralTicketId]);
@@ -147,7 +148,7 @@ contract LotteryReader is EmergencyFunctions {
         });
     }
 
-    function evaluateWonResultsForReferral(uint256 roundId) public view returns (ReferralTicketResults[] memory) {
+    function evaluateWonResultsForReferral(uint256 roundId) public view override returns (ReferralTicketResults[] memory) {
         LotteryRound lotteryRound = LotteryRound(lotteryMaster.roundForId(roundId));
         Round memory roundForEvaluation = lotteryRound.getRound();
         ReferralTicketResults[] memory referralWinnerIds = new ReferralTicketResults[](roundForEvaluation.referralCounts);
@@ -163,7 +164,7 @@ contract LotteryReader is EmergencyFunctions {
         return referralWinnerIds;
     }
 
-    function amountWonInRound(uint256 roundId) public view returns (uint256) {
+    function amountWonInRound(uint256 roundId) public view override returns (uint256) {
         LotteryRound lotteryRound = LotteryRound(lotteryMaster.rounds(roundId -1));
         return lotteryRound.victoryTierAmounts(RoundVictoryTier.Tier5_1) + lotteryRound.victoryTierAmounts(RoundVictoryTier.Tier5) + lotteryRound.victoryTierAmounts(RoundVictoryTier.Tier4_1) +
         lotteryRound.victoryTierAmounts(RoundVictoryTier.Tier4) + lotteryRound.victoryTierAmounts(RoundVictoryTier.Tier3_1) + lotteryRound.victoryTierAmounts(RoundVictoryTier.Tier3) +

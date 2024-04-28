@@ -8,7 +8,7 @@ import {CyclixRandomizerInterface} from "./CyclixRandomizerInterface.sol";
 import {EmergencyFunctions} from "./utils/EmergencyFunctions.sol";
 import { RoundVictoryTier, Round, Ticket, TicketResults, ReferralTicket, ReferralTicketResults } from "./LotteryCommon.sol";
 import { LotteryRound } from "./LotteryRound.sol";
-import { LotteryReader } from "./LotteryReader.sol";
+import { LotteryReaderInterface } from "./LotteryReaderInterface.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 contract LotteryMaster is EmergencyFunctions {
@@ -46,29 +46,24 @@ contract LotteryMaster is EmergencyFunctions {
     function setTreasuryWallet(address wallet) public onlyOwner {
         treasuryWallets = wallet;
     }
-    uint16 public roundDurationInSeconds;
-    function setRoundDurationInSeconds(uint16 _roundDuration) public onlyOwner {
-        roundDurationInSeconds = _roundDuration;
-    }
     IERC20Metadata public paymentToken;
     function setPaymentToken(address _paymentToken) public onlyOwner {
         paymentToken = IERC20Metadata(_paymentToken);
     }
     CyclixRandomizerInterface public randomizer;
-    LotteryReader public reader;
+    LotteryReaderInterface public reader;
     uint256 public ticketPrice;
     function setTicketPrice(uint256 _ticketPrice) public onlyOwner {
         ticketPrice = _ticketPrice;
     }
 
-    constructor(address cyclixRandomizer, address _paymentToken, uint256 _ticketPrice, uint16 _roundDuration)
+    constructor(address cyclixRandomizer, address lotteryReader, address _paymentToken, uint256 _ticketPrice)
     EmergencyFunctions(msg.sender) {
         randomizer = CyclixRandomizerInterface(cyclixRandomizer);
         randomizer.registerGameContract(address(this), "LotteryMasterV0.1");
-        reader = new LotteryReader(this);
+        reader = LotteryReaderInterface(lotteryReader);
         paymentToken = IERC20Metadata(_paymentToken);
         ticketPrice = _ticketPrice * (10 ** uint256(paymentToken.decimals()));
-        roundDurationInSeconds = _roundDuration;
         treasuryWallets = msg.sender;
         bankWallets.push(msg.sender);
     }

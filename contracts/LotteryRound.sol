@@ -7,7 +7,6 @@ import {TestFunctions} from "./utils/TestUtils.sol";
 import {CyclixRandomizerInterface} from "./CyclixRandomizerInterface.sol";
 import {EmergencyFunctions} from "./utils/EmergencyFunctions.sol";
 import { RoundVictoryTier, Round, Ticket, TicketResults, ReferralTicket, ReferralTicketResults } from "./LotteryCommon.sol";
-import { LotteryMaster } from "./LotteryMaster.sol";
 
 contract LotteryRound is EmergencyFunctions {
     Round public round;

@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "flatten-cyclix": "hardhat flatten contracts/CyclixRandomizer.sol > flattened/CyclixRandomizer.sol contracts/LotteryMaster.sol > flattened/LotteryMaster.sol contracts/LotteryRound.sol > flattened/LotteryRound.sol contracts/LotteryReader.sol > flattened/LotteryReader.sol;",
     "compile": "hardhat compile",
     "cyclix": "hardhat compile; hardhat test test/*",
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -13,7 +14,8 @@
   "license": "ISC",
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
-    "hardhat": "^2.22.2"
+    "hardhat": "^2.22.2",
+    "hardhat-deploy": "^0.12.4"
   },
   "dependencies": {
     "@chainlink/contracts": "^1.0.0",
