@@ -16,6 +16,7 @@ const deployLotteryMaster: DeployFunction = async (hre: HardhatRuntimeEnvironmen
         nonce: "pending",
     });
 
+
     const lotteryReaderFactory = await hre.ethers.getContractFactory("LotteryReader");
     const lotteryContract = await lotteryReaderFactory.attach(lotteryReader.address);
     await lotteryContract.setLotteryMaster(lotteryMaster.address);
