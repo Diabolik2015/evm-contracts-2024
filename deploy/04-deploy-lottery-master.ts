@@ -1,5 +1,6 @@
 import {DeployFunction} from "hardhat-deploy/dist/types";
 import {HardhatRuntimeEnvironment} from "hardhat/types";
+import {LotteryReader} from "../typechain-types";
 
 const deployLotteryMaster: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     const { deploy } = hre.deployments;
@@ -18,7 +19,7 @@ const deployLotteryMaster: DeployFunction = async (hre: HardhatRuntimeEnvironmen
 
 
     const lotteryReaderFactory = await hre.ethers.getContractFactory("LotteryReader");
-    const lotteryContract = await lotteryReaderFactory.attach(lotteryReader.address);
+    const lotteryContract = lotteryReaderFactory.attach(lotteryReader.address) as LotteryReader;
     await lotteryContract.setLotteryMaster(lotteryMaster.address);
     console.log("Lottery Reader rightly attached to Lottery Master:", lotteryReader.address, lotteryMaster.address, await lotteryContract.lotteryMaster());
 };
