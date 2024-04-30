@@ -37,7 +37,7 @@ contract LotteryRound is EmergencyFunctions {
     mapping(RoundVictoryTier => uint256) public winnersForEachTier;
     address public previousRound;
 
-    constructor(address previousRoundAddress, uint16 roundDurationInSeconds) EmergencyFunctions(msg.sender) {
+    constructor(address previousRoundAddress, uint256 roundDurationInSeconds) EmergencyFunctions(msg.sender) {
         uint256 id = 1;
         previousRound = previousRoundAddress;
         if (previousRoundAddress != address(0)) {
