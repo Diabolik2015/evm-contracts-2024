@@ -1,30 +1,19 @@
 import {DeployFunction} from "hardhat-deploy/dist/types";
 import {HardhatRuntimeEnvironment} from "hardhat/types";
-import {LotteryMaster, LotteryReader} from "../typechain-types";
+import {LotteryMaster, LotteryReader, LotteryRoundCreator} from "../typechain-types";
+import {LotteryRound} from "../typechain-types/contracts/LotteryMaster.sol/LotteryRound";
 
-const deployLotteryMaster: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
+const deployLotteryRoundCreator: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     const { deploy } = hre.deployments;
     const { deployer } = await hre.getNamedAccounts();
 
-    let cyclixRandomizer = await hre.deployments.get("CyclixRandomizer");
-    let lotteryReader = await hre.deployments.get("LotteryReader");
-    let testUsdt = await hre.deployments.get("TestUsdt");
-
-    const lotteryMaster = await deploy("LotteryMaster", {
+    await deploy("LotteryRoundCreator", {
         from: deployer,
         log: true,
-        args: [cyclixRandomizer.address, lotteryReader.address, testUsdt.address, 10],
+        args: [],
         nonce: "pending",
     });
-    const lotteryMasterFactory = await hre.ethers.getContractFactory("LotteryMaster");
-    const lotteryMasterContract = lotteryMasterFactory.attach(lotteryMaster.address) as LotteryMaster;
-
-    const lotteryReaderFactory = await hre.ethers.getContractFactory("LotteryReader");
-    const lotteryContract = lotteryReaderFactory.attach(lotteryReader.address) as LotteryReader;
-    await lotteryContract.setLotteryMaster(lotteryMaster.address);
-    await lotteryMasterContract.setFreeRoundsOnPurchase(true);
-    console.log("Lottery Reader rightly attached to Lottery Master:", lotteryReader.address, lotteryMaster.address, await lotteryContract.lotteryMaster());
 };
 
-export default deployLotteryMaster;
-deployLotteryMaster.tags = ["all", "lottery"];
+export default deployLotteryRoundCreator;
+deployLotteryRoundCreator.tags = ["all", "lottery"];

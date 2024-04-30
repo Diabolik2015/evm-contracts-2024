@@ -3,13 +3,13 @@ pragma solidity ^0.8.20;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import {TestFunctions} from "./utils/TestUtils.sol";
 import {CyclixRandomizerInterface} from "./CyclixRandomizerInterface.sol";
 import {EmergencyFunctions} from "./utils/EmergencyFunctions.sol";
 import { RoundVictoryTier, Round, Ticket, TicketResults, ReferralTicket, ReferralTicketResults } from "./LotteryCommon.sol";
 import { LotteryRound } from "./LotteryRound.sol";
 import { LotteryReaderInterface } from "./LotteryReaderInterface.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "./LotteryRoundCreatorInterface.sol";
 
 contract LotteryMaster is EmergencyFunctions {
 
@@ -67,23 +67,28 @@ contract LotteryMaster is EmergencyFunctions {
         percentageOfReferralWinners = percentage;
     }
 
-    constructor(address cyclixRandomizer, address lotteryReader, address _paymentToken, uint256 _ticketPrice)
+    LotteryRoundCreatorInterface public lotteryRoundCreator;
+
+    constructor(address cyclixRandomizer, address lotteryReader, address _lotteryRoundCreator, address _paymentToken, uint256 _ticketPrice)
     EmergencyFunctions(msg.sender) {
         randomizer = CyclixRandomizerInterface(cyclixRandomizer);
         randomizer.registerGameContract(address(this), "LotteryMasterV0.1");
         reader = LotteryReaderInterface(lotteryReader);
+        lotteryRoundCreator = LotteryRoundCreatorInterface(_lotteryRoundCreator);
         paymentToken = IERC20Metadata(_paymentToken);
         ticketPrice = _ticketPrice * (10 ** uint256(paymentToken.decimals()));
         treasuryWallets = msg.sender;
         bankWallets.push(msg.sender);
     }
 
-    function startNewRound(address newLotteryRoundAddress) public onlyOwner {
+    function startNewRound(uint256 roundDurationInSeconds) public onlyOwner {
         roundCount++;
-        rounds.push(address(newLotteryRoundAddress));
         if (roundCount > 1) {
+            rounds.push(lotteryRoundCreator.startNewRound(roundDurationInSeconds, rounds[roundCount - 2]));
             require(LotteryRound(rounds[roundCount - 2]).getRound().ended, "Previous round not ended");
-            require(rounds[roundCount - 2] == LotteryRound(newLotteryRoundAddress).previousRound(), "Previous round not propagated correctly");
+            require(rounds[roundCount - 2] == LotteryRound(rounds[roundCount - 1]).previousRound(), "Previous round not propagated correctly");
+        } else {
+            rounds.push(lotteryRoundCreator.startNewRound(roundDurationInSeconds, address(0)));
         }
     }
 

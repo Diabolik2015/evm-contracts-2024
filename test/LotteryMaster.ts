@@ -37,9 +37,13 @@ describe("Lottery Master", function () {
 
     const lotteryReaderFactory = await hre.ethers.getContractFactory("LotteryReader");
     const lotteryReader = await lotteryReaderFactory.deploy();
+    const lotteryRoundCreatorFactory = await hre.ethers.getContractFactory("LotteryRoundCreator");
+    const lotteryRoundCreator = await lotteryRoundCreatorFactory.deploy();
 
-    const lotterMasterFactory = await hre.ethers.getContractFactory("LotteryMaster");
-    const lotteryMaster = await lotterMasterFactory.deploy(cyclixRandomizer.getAddress(), lotteryReader.getAddress(), usdtContract, 10)
+    const lotteryMasterFactory = await hre.ethers.getContractFactory("LotteryMaster");
+    const lotteryMaster = await lotteryMasterFactory.deploy(cyclixRandomizer.getAddress(), lotteryReader.getAddress(),
+        lotteryRoundCreator.getAddress(), usdtContract, 10)
+    await lotteryRoundCreator.transferOwnership(lotteryMaster.getAddress())
     await lotteryReader.setLotteryMaster(lotteryMaster.getAddress());
 
     await usdtContract.connect(player1).approve(await lotteryMaster.getAddress(), toEtherBigInt(1000))
@@ -53,18 +57,13 @@ describe("Lottery Master", function () {
 
   async function deployLotteryMasterAndStartRound() {
     const deployed = await deployLotteryMaster();
+    await deployed.lotteryMaster.startNewRound(50);
+    const lotteryRoundAddress = await deployed.lotteryMaster.getCurrentRound()
     const contract = await hre.ethers.getContractFactory("LotteryRound");
-    const lotteryRound = await contract.deploy(hre.ethers.ZeroAddress, 50)
-    await lotteryRound.transferOwnership(await deployed.lotteryMaster.getAddress())
-    await deployed.lotteryMaster.startNewRound(await lotteryRound.getAddress())
-    return { ...deployed, lotteryRound }
-  }
+    // @ts-ignore
+    const lotteryRound = contract.attach(lotteryRoundAddress) as LotteryRound;
 
-  async function deployLotteryRound(prevRound: AddressLike = hre.ethers.ZeroAddress, lotteryMaster: LotteryMaster)  {
-    const contract = await hre.ethers.getContractFactory("LotteryRound");
-    let lotteryRound = await contract.deploy(prevRound, 50);
-    await lotteryRound.transferOwnership(await lotteryMaster.getAddress())
-    return lotteryRound
+    return { ...deployed, lotteryRound }
   }
 
   async function addPlayersToLotteryRound(lotteryMaster: LotteryMaster) {
@@ -396,9 +395,9 @@ describe("Lottery Master", function () {
       await lotteryMaster.connect(referral1).claimVictory(7)
       expect(await lotteryRound.victoryTierAmountsClaimed(6)).to.equal((await lotteryRound.victoryTierAmounts(6)) / BigInt(2))
 
-      let lotteryRound2 = await deployLotteryRound(await lotteryRound.getAddress(), lotteryMaster)
-      const roundId2 = Number((await lotteryRound2.getRound()).id)
-      await lotteryMaster.startNewRound(lotteryRound2)
+      const roundId2 = 2
+      await lotteryMaster.startNewRound(50)
+      const lotteryRound2 = await hre.ethers.getContractAt("LotteryRound", await lotteryMaster.getCurrentRound()) as LotteryRound
 
       expect(roundId2).to.equal(2)
       await expect(lotteryMaster.connect(player3).claimVictory(5)).to.be.reverted

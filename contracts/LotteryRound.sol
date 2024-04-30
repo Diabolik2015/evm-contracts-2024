@@ -2,13 +2,9 @@
 pragma solidity ^0.8.20;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import {TestFunctions} from "./utils/TestUtils.sol";
-import {CyclixRandomizerInterface} from "./CyclixRandomizerInterface.sol";
-import {EmergencyFunctions} from "./utils/EmergencyFunctions.sol";
 import { RoundVictoryTier, Round, Ticket, TicketResults, ReferralTicket, ReferralTicketResults } from "./LotteryCommon.sol";
 
-contract LotteryRound is EmergencyFunctions {
+contract LotteryRound is Ownable {
     Round public round;
     function getRound() public view returns (Round memory) {
         return round;
@@ -39,10 +35,10 @@ contract LotteryRound is EmergencyFunctions {
 
     uint16[]  public  poolPercentagesBasePoints = [7000, 3500, 1500, 1000, 700, 500, 300, 1500, 1000, 5000];
     function setPoolPercentagesBasePoints(uint16[] memory _poolPercentagesBasePoints) public onlyOwner {
-            poolPercentagesBasePoints = _poolPercentagesBasePoints;
+        poolPercentagesBasePoints = _poolPercentagesBasePoints;
     }
 
-    constructor(address previousRoundAddress, uint256 roundDurationInSeconds) EmergencyFunctions(msg.sender) {
+    constructor(address previousRoundAddress, uint256 roundDurationInSeconds) Ownable(msg.sender) {
         uint256 id = 1;
         previousRound = previousRoundAddress;
         if (previousRoundAddress != address(0)) {

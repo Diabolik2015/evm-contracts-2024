@@ -15,7 +15,7 @@ const config: HardhatUserConfig = {
     avalancheFuji: {
       chainId: 43113,
       url: "https://api.avax-test.network/ext/bc/C/rpc",
-      accounts: [process.env.PRIVATE_KEY_DEVELOPER],
+      accounts: [process.env.PRIVATE_KEY_DEVELOPER??""],
       saveDeployments: true,
     }
   },
@@ -28,7 +28,7 @@ const config: HardhatUserConfig = {
   settings: {
     optimizer: {
       enabled: true,
-      runs: 1000,
+      runs: 1,
     },
   },
 };
