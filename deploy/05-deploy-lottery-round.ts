@@ -8,12 +8,18 @@ const deployLotteryRound: DeployFunction = async (hre: HardhatRuntimeEnvironment
     const { deploy } = hre.deployments;
     const { deployer } = await hre.getNamedAccounts();
 
-    await deploy("LotteryRound", {
+    let lotteryMasterDeployment = await hre.deployments.get("LotteryMaster");
+
+    let lotteryRoundDeployment = await deploy("LotteryRound", {
         from: deployer,
         log: true,
         args: [hre.ethers.ZeroAddress, 86400 * 5],
         nonce: "pending",
     });
+
+    const lotteryRoundFactory = await hre.ethers.getContractFactory("LotteryRound");
+    const lotteryRound = lotteryRoundFactory.attach(lotteryRoundDeployment.address) as LotteryRound;
+    await lotteryRound.transferOwnership(lotteryMasterDeployment.address);
 };
 
 export default deployLotteryRound;

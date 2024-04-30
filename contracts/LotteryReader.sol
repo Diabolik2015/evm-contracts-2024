@@ -42,7 +42,7 @@ contract LotteryReader is LotteryReaderInterface, EmergencyFunctions {
         uint16 referralWinnersForRound = 0;
         uint16 referralCounts = LotteryRound(lotteryMaster.rounds(roundId -1)).getRound().referralCounts;
         unchecked {
-            referralWinnersForRound = referralCounts / 10;
+            referralWinnersForRound = referralCounts / lotteryMaster.percentageOfReferralWinners();
         }
         if (referralWinnersForRound == 0 && referralCounts > 0) {
             referralWinnersForRound = 1;

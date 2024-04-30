@@ -57,6 +57,16 @@ contract LotteryMaster is EmergencyFunctions {
         ticketPrice = _ticketPrice;
     }
 
+    bool public freeRoundsAreEnabled = false;
+    function setFreeRoundsOnPurchase(bool v) public onlyOwner {
+        freeRoundsAreEnabled = v;
+    }
+
+    uint16 public percentageOfReferralWinners = 10;
+    function setPercentageOfReferralWinners(uint16 percentage) public onlyOwner {
+        percentageOfReferralWinners = percentage;
+    }
+
     constructor(address cyclixRandomizer, address lotteryReader, address _paymentToken, uint256 _ticketPrice)
     EmergencyFunctions(msg.sender) {
         randomizer = CyclixRandomizerInterface(cyclixRandomizer);
@@ -89,9 +99,17 @@ contract LotteryMaster is EmergencyFunctions {
             SafeERC20.safeTransferFrom(paymentToken, msg.sender, bankWallets[counterForBankWallets], ticketPrice - treasuryAmount);
             SafeERC20.safeTransferFrom(paymentToken, msg.sender, treasuryWallets, treasuryAmount);
             lotteryRound.updateVictoryPoolForTicket(ticketPrice);
+            addFreeRoundForBuyTicket(msg.sender, referral);
         }
 
         lotteryRound.buyTicket(chainId, chosenNumbers, powerNumber, referral);
+    }
+
+    function addFreeRoundForBuyTicket(address buyer, address referral) internal {
+        if (referral != address(0) && freeRoundsAreEnabled) {
+            freeRounds[buyer]++;
+            freeRounds[referral]++;
+        }
     }
 
     function addFreeRound(address[] calldata participant) public onlyOwner {
