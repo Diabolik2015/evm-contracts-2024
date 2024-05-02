@@ -21,17 +21,24 @@ const deployLotteryMaster: DeployFunction = async (hre: HardhatRuntimeEnvironmen
     const lotteryMasterContract = lotteryMasterFactory.attach(lotteryMaster.address) as LotteryMaster;
 
     const lotteryReaderFactory = await hre.ethers.getContractFactory("LotteryReader");
-    const lotteryContract = lotteryReaderFactory.attach(lotteryReader.address) as LotteryReader;
-    await lotteryContract.setLotteryMaster(lotteryMaster.address);
-    console.log("Lottery Reader rightly attached to Lottery Master:", lotteryReader.address, lotteryMaster.address, await lotteryContract.lotteryMaster());
-
-    await lotteryMasterContract.setFreeRoundsOnPurchase(true);
+    const lotteryReaderContract = lotteryReaderFactory.attach(lotteryReader.address) as LotteryReader;
+    await lotteryReaderContract.connect(await hre.ethers.getSigner(deployer)).setLotteryMaster(lotteryMaster.address);
+    if (await lotteryReaderContract.lotteryMaster() != lotteryMaster.address) {
+        console.log("Lottery Reader rightly attached to Lottery Master:", lotteryReader.address, lotteryMaster.address, await lotteryReaderContract.lotteryMaster());
+    }
+    if (!await lotteryMasterContract.freeRoundsAreEnabled()) {
+        await lotteryMasterContract.setFreeRoundsOnPurchase(true);
+    }
 
     const lotteryRoundCreatorFactory = await hre.ethers.getContractFactory("LotteryRoundCreator");
     const lotteryRoundCreatorContract = lotteryRoundCreatorFactory.attach(lotteryRoundCreator.address) as LotteryRoundCreator;
-    console.log("Attempting to transfer ownership of Lottery Round Creator to Lottery Master:", lotteryRoundCreator.address, lotteryMaster.address, await lotteryRoundCreatorContract.owner());
-    await lotteryRoundCreatorContract.connect(await hre.ethers.getSigner(deployer)).transferOwnership(lotteryMaster.address);
-    console.log("Lottery Round Creator rightly transferred to Lottery Master:", lotteryRoundCreator.address, lotteryMaster.address, await lotteryRoundCreatorContract.owner());
+
+    if (await lotteryRoundCreatorContract.owner() != lotteryMaster.address) {
+        console.log("Attempting to transfer ownership of Lottery Round Creator to Lottery Master:", lotteryRoundCreator.address, lotteryMaster.address, await lotteryRoundCreatorContract.owner());
+        await lotteryRoundCreatorContract.connect(await hre.ethers.getSigner(deployer)).transferOwnership(lotteryMaster.address);
+        console.log("Lottery Round Creator rightly transferred to Lottery Master:", lotteryRoundCreator.address, lotteryMaster.address, await lotteryRoundCreatorContract.owner());
+    }
+
 };
 
 export default deployLotteryMaster;

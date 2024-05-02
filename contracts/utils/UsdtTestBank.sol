@@ -6,8 +6,10 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 contract UsdtTestBank  {
-    address usdtAddress;
-    constructor(address _usdt) {}
+    address public usdtAddress;
+    constructor(address _usdt) {
+        usdtAddress = _usdt;
+    }
 
     function getOneHundredDollars() public {
         SafeERC20.safeTransferFrom(IERC20(usdtAddress), address(this), msg.sender, 100 * 10 ** 18);
