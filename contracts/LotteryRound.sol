@@ -136,8 +136,8 @@ contract LotteryRound is Ownable {
         round.ticketIds.push(ticketId);
         round.ticketsCount++;
 
-        roundTicketsByAddress[msg.sender].push(tickets.length - 1);
-        roundTicketsByAddressCount[msg.sender]++;
+        roundTicketsByAddress[tx.origin].push(tickets.length - 1);
+        roundTicketsByAddressCount[tx.origin]++;
         if (referral != address(0)) {
             uint256 referralTicketId = referralTickets.length;
             round.referralTicketIds.push(referralTicketId);

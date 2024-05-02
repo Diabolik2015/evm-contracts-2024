@@ -12,9 +12,9 @@ contract UsdtTestBank  {
     }
 
     function getOneHundredDollars() public {
-        SafeERC20.safeTransferFrom(IERC20(usdtAddress), address(this), msg.sender, 100 * 10 ** 18);
+        SafeERC20.safeTransfer(IERC20(usdtAddress), msg.sender, 100 * 10 ** 18);
     }
     function getOneThousandsDollars() public {
-        SafeERC20.safeTransferFrom(IERC20(usdtAddress), address(this), msg.sender, 1000 * 10 ** 18);
+        SafeERC20.safeTransfer(IERC20(usdtAddress), msg.sender, 1000 * 10 ** 18);
     }
 }

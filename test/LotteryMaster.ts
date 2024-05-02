@@ -304,6 +304,7 @@ describe("Lottery Master", function () {
 
       const { lotteryMaster, lotteryRound, lotteryReader, cyclixRandomizer, vrfMock } = await deployLotteryMasterAndStartRound();
       await addPlayersToLotteryRound(lotteryMaster);
+      expect(await lotteryRound.roundTicketsByAddressCount(player1.address)).to.equal(2)
       await hre.ethers.provider.send("evm_increaseTime", [50])
       await lotteryMaster.closeRound()
       await executeChainLinkVrf(roundId, winningNumbers, winningPowerNumber, referralWinnerNumber, lotteryMaster, cyclixRandomizer, vrfMock);
@@ -436,6 +437,20 @@ describe("Lottery Master", function () {
       await lotteryMaster.connect(player1).buyTickets((await hre.ethers.provider.getNetwork()).chainId, [1, 2, 3, 4, 69, 26, 4, 2, 1, 28, 29, 4], referral1);
       round = await lotteryRound.getRound();
       expect(round.ticketsCount).equal(2);
+    })
+
+    it("Check if the Usdt Bank for tests works", async function() {
+      const usdt = await hre.ethers.getContractFactory("TestUsdt");
+      const usdtContract = await usdt.deploy();
+
+      const usdtBank = await hre.ethers.getContractFactory("UsdtTestBank");
+      const usdtBankContract = await usdtBank.deploy(await usdtContract.getAddress());
+
+      const [owner] = await hre.ethers.getSigners()
+
+      await usdtContract.transfer(await usdtBankContract.getAddress(), toEtherBigInt(1000))
+      expect(await usdtContract.balanceOf(await usdtBankContract.getAddress())).to.equal(toEtherBigInt(1000))
+      expect(await usdtBankContract.getOneHundredDollars()).to.not.be.reverted
     })
   })
 });
