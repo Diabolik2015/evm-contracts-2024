@@ -92,6 +92,16 @@ contract LotteryMaster is EmergencyFunctions {
         }
     }
 
+    function buyTickets(uint256 chainId, uint16[] memory moreTicketNumbers, address referral) public {
+        for (uint i = 0; i < moreTicketNumbers.length; i += 6) {
+            uint16[] memory chosenNumbers = new uint16[](5);
+            for (uint j = 0; j < 5; j++) {
+                chosenNumbers[j] = moreTicketNumbers[i + j];
+            }
+            buyTicket(chainId, chosenNumbers, moreTicketNumbers[5], referral);
+        }
+    }
+
     function buyTicket(uint256 chainId, uint16[] memory chosenNumbers, uint16 powerNumber, address referral) public {
         require(freeRounds[tx.origin] > 0 || paymentToken.allowance(tx.origin, address(this)) >= ticketPrice, "Missing Allowance");
         LotteryRound lotteryRound = LotteryRound(rounds[roundCount - 1]);

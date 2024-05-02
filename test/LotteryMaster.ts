@@ -426,7 +426,16 @@ describe("Lottery Master", function () {
       // Attempt to claim the prize for the previous round
       await expect(lotteryMaster.connect(player3).claimVictory(5)).to.be.reverted
       await lotteryMaster.connect(referral3).claimReferralVictory(2)
+    })
 
+    it("Should be able to buy more tickets", async function () {
+      const { lotteryMaster, lotteryRound,
+        lotteryReader, cyclixRandomizer, vrfMock } = await deployLotteryMasterAndStartRound();
+      let round = await lotteryRound.getRound();
+      expect(round.ticketsCount).equal(0);
+      await lotteryMaster.connect(player1).buyTickets((await hre.ethers.provider.getNetwork()).chainId, [1, 2, 3, 4, 69, 26, 4, 2, 1, 28, 29, 4], referral1);
+      round = await lotteryRound.getRound();
+      expect(round.ticketsCount).equal(2);
     })
   })
 });
