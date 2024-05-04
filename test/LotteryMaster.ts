@@ -60,7 +60,7 @@ describe("Lottery Master", function () {
   async function deployLotteryMasterAndStartRound() {
     const deployed = await deployLotteryMaster();
     await deployed.lotteryMaster.startNewRound(50);
-    const lotteryRoundAddress = await deployed.lotteryMaster.getCurrentRound()
+    const lotteryRoundAddress = await deployed.lotteryMaster.rounds(Number((await deployed.lotteryMaster.roundCount())) - 1)
     const contract = await hre.ethers.getContractFactory("LotteryRound");
     // @ts-ignore
     const lotteryRound = contract.attach(lotteryRoundAddress) as LotteryRound;
@@ -69,16 +69,16 @@ describe("Lottery Master", function () {
   }
 
   async function addPlayersToLotteryRound(lotteryMaster: LotteryMaster) {
-    await lotteryMaster.connect(player1).buyTicket((await hre.ethers.provider.getNetwork()).chainId, [1, 2, 3, 4, 69], 26, referral1);
-    await lotteryMaster.connect(player1).buyTicket((await hre.ethers.provider.getNetwork()).chainId, [1, 2, 3, 4, 69], 24, referral2);
-    await lotteryMaster.connect(player2).buyTicket((await hre.ethers.provider.getNetwork()).chainId, [1, 2, 3, 4, 14], 26, referral3);
-    await lotteryMaster.connect(player2).buyTicket((await hre.ethers.provider.getNetwork()).chainId, [1, 2, 3, 4, 14], 24, referral1);
-    await lotteryMaster.connect(player3).buyTicket((await hre.ethers.provider.getNetwork()).chainId, [36, 2, 3, 13, 14], 26, referral1);
-    await lotteryMaster.connect(player3).buyTicket((await hre.ethers.provider.getNetwork()).chainId, [1, 2, 3, 13, 14], 24, referral1);
-    await lotteryMaster.connect(referral1).buyTicket((await hre.ethers.provider.getNetwork()).chainId, [1, 2, 3, 4, 69], 26, hre.ethers.ZeroAddress);
-    await lotteryMaster.connect(referral1).buyTicket((await hre.ethers.provider.getNetwork()).chainId, [1, 2, 3, 13, 14], 26, hre.ethers.ZeroAddress);
-    await lotteryMaster.connect(referral2).buyTicket((await hre.ethers.provider.getNetwork()).chainId, [1, 2, 4, 6, 14], 24, hre.ethers.ZeroAddress);
-    await lotteryMaster.connect(referral3).buyTicket((await hre.ethers.provider.getNetwork()).chainId, [1, 2, 3, 4, 14], 26, hre.ethers.ZeroAddress);
+    await lotteryMaster.connect(player1).buyTicket((await hre.ethers.provider.getNetwork()).chainId, [1, 2, 3, 4, 69, 26], referral1);
+    await lotteryMaster.connect(player1).buyTicket((await hre.ethers.provider.getNetwork()).chainId, [1, 2, 3, 4, 69, 24], referral2);
+    await lotteryMaster.connect(player2).buyTicket((await hre.ethers.provider.getNetwork()).chainId, [1, 2, 3, 4, 14, 26], referral3);
+    await lotteryMaster.connect(player2).buyTicket((await hre.ethers.provider.getNetwork()).chainId, [1, 2, 3, 4, 14, 24], referral1);
+    await lotteryMaster.connect(player3).buyTicket((await hre.ethers.provider.getNetwork()).chainId, [36, 2, 3, 13, 14, 26], referral1);
+    await lotteryMaster.connect(player3).buyTicket((await hre.ethers.provider.getNetwork()).chainId, [1, 2, 3, 13, 14, 24], referral1);
+    await lotteryMaster.connect(referral1).buyTicket((await hre.ethers.provider.getNetwork()).chainId, [1, 2, 3, 4, 69, 26], hre.ethers.ZeroAddress);
+    await lotteryMaster.connect(referral1).buyTicket((await hre.ethers.provider.getNetwork()).chainId, [1, 2, 3, 13, 14, 26], hre.ethers.ZeroAddress);
+    await lotteryMaster.connect(referral2).buyTicket((await hre.ethers.provider.getNetwork()).chainId, [1, 2, 4, 6, 14, 24], hre.ethers.ZeroAddress);
+    await lotteryMaster.connect(referral3).buyTicket((await hre.ethers.provider.getNetwork()).chainId, [1, 2, 3, 4, 14, 26], hre.ethers.ZeroAddress);
   }
 
   async function executeChainLinkVrf(roundId: number, winningNumbers: number[], winningPowerNumber: number, referralIndexes: number[],
@@ -102,12 +102,12 @@ describe("Lottery Master", function () {
 
   async function computeTicketResultsOffChain(lotteryRound: LotteryRound) {
     const winningNumbersFromChain =(await lotteryRound.getRound()).roundNumbers
-    const winningPowerNumberFromChain =(await lotteryRound.getRound()).powerNumber
     const roundTicketCount =(await lotteryRound.getRound()).ticketsCount;
     const ticketResults: any = []
     for (let i = 0; i < roundTicketCount; i++) {
       const ticket = await lotteryRound.tickets((await lotteryRound.getRound()).ticketIds[i])
-      const powerNumberFound = ticket.powerNumber === winningPowerNumberFromChain
+      let ticketPowerNumber = Number(await lotteryRound.ticketNumbers(ticket.id, 5));
+      const powerNumberFound = ticketPowerNumber === Number(winningNumbersFromChain[5])
       let rightNumbersForTicket = 0
       for(let i = 0; i < 5; i++) {
         let ticketNumber = Number(await lotteryRound.ticketNumbers(ticket.id, i));
@@ -186,21 +186,21 @@ describe("Lottery Master", function () {
     it("Should validate numbers to Join Lottery Round", async function () {
       const {lotteryMaster} = await deployLotteryMasterAndStartRound();
 
-      await expect(lotteryMaster.connect(player1).buyTicket((await hre.ethers.provider.getNetwork()).chainId, [1, 4, 6, 10, 70], 24, hre.ethers.ZeroAddress)).to.be.revertedWith("Invalid numbers");
-      await expect(lotteryMaster.connect(player1).buyTicket((await hre.ethers.provider.getNetwork()).chainId, [0, 4, 6, 10, 21], 24, hre.ethers.ZeroAddress)).to.be.revertedWith("Invalid numbers");
-      await expect(lotteryMaster.connect(player1).buyTicket((await hre.ethers.provider.getNetwork()).chainId, [1, 4, 6, 10, 21], 27, hre.ethers.ZeroAddress)).to.be.revertedWith("Invalid power number");
+      await expect(lotteryMaster.connect(player1).buyTicket((await hre.ethers.provider.getNetwork()).chainId, [1, 4, 6, 10, 70, 24], hre.ethers.ZeroAddress)).to.be.revertedWith("Invalid numbers");
+      await expect(lotteryMaster.connect(player1).buyTicket((await hre.ethers.provider.getNetwork()).chainId, [0, 4, 6, 10, 21, 24], hre.ethers.ZeroAddress)).to.be.revertedWith("Invalid numbers");
+      await expect(lotteryMaster.connect(player1).buyTicket((await hre.ethers.provider.getNetwork()).chainId, [1, 4, 6, 10, 21, 27], hre.ethers.ZeroAddress)).to.be.revertedWith("Invalid power number");
     })
 
     it("Should be able to Make wallets Join Lottery Round", async function () {
       const { lotteryMaster, lotteryRound } = await deployLotteryMasterAndStartRound();
       const initialOwnerBalance = await usdtContract.balanceOf(owner.address)
 
-      await lotteryMaster.connect(player1).buyTicket((await hre.ethers.provider.getNetwork()).chainId, [1, 4, 6, 10, 21], 24, hre.ethers.ZeroAddress);
+      await lotteryMaster.connect(player1).buyTicket((await hre.ethers.provider.getNetwork()).chainId, [1, 4, 6, 10, 21, 24], hre.ethers.ZeroAddress);
       let round = await lotteryRound.getRound();
       expect(round.ticketsCount).equal(1);
 
-      await lotteryMaster.connect(player2).buyTicket((await hre.ethers.provider.getNetwork()).chainId, [1, 4, 6, 10, 21], 24, player1.address);
-      await lotteryMaster.connect(player2).buyTicket((await hre.ethers.provider.getNetwork()).chainId, [1, 4, 6, 10, 21], 24, player1.address);
+      await lotteryMaster.connect(player2).buyTicket((await hre.ethers.provider.getNetwork()).chainId, [1, 4, 6, 10, 21, 24], player1.address);
+      await lotteryMaster.connect(player2).buyTicket((await hre.ethers.provider.getNetwork()).chainId, [1, 4, 6, 10, 21, 24], player1.address);
       round = await lotteryRound.getRound();
       expect(round.ticketsCount).equal(3);
       expect(round.referralCounts).equal(2);
@@ -212,9 +212,9 @@ describe("Lottery Master", function () {
       const initialOwnerBalance = await usdtContract.balanceOf(owner.address)
 
       await lotteryMaster.addFreeRound([player1.address, player3.address])
-      await lotteryMaster.connect(player1).buyTicket((await hre.ethers.provider.getNetwork()).chainId, [1, 4, 6, 10, 21], 24, player2.address);
-      await lotteryMaster.connect(player2).buyTicket((await hre.ethers.provider.getNetwork()).chainId, [1, 4, 6, 10, 21], 24, player1.address);
-      await lotteryMaster.connect(player3).buyTicket((await hre.ethers.provider.getNetwork()).chainId, [1, 4, 6, 10, 21], 24, player1.address);
+      await lotteryMaster.connect(player1).buyTicket((await hre.ethers.provider.getNetwork()).chainId, [1, 4, 6, 10, 21, 24], player2.address);
+      await lotteryMaster.connect(player2).buyTicket((await hre.ethers.provider.getNetwork()).chainId, [1, 4, 6, 10, 21, 24], player1.address);
+      await lotteryMaster.connect(player3).buyTicket((await hre.ethers.provider.getNetwork()).chainId, [1, 4, 6, 10, 21, 24], player1.address);
       const round = await lotteryRound.getRound();
       expect(round.ticketsCount).equal(3);
       expect(round.referralCounts).equal(3);
@@ -229,7 +229,7 @@ describe("Lottery Master", function () {
       const players = [player1, player2, player3]
       for (let i = 0; i < 10; i++) {
         let playerId = i % 3;
-        await lotteryMaster.connect(players[playerId]).buyTicket((await hre.ethers.provider.getNetwork()).chainId, [1, 4, 6, 10, 21], 24, players[(i + 1) % 3]);
+        await lotteryMaster.connect(players[playerId]).buyTicket((await hre.ethers.provider.getNetwork()).chainId, [1, 4, 6, 10, 21, 24], players[(i + 1) % 3]);
       }
       expect((await usdtContract.balanceOf(owner.address)) - initialOwnerBalance).equal(toEtherBigInt(80))
       const round = await lotteryRound.getRound();
@@ -287,13 +287,12 @@ describe("Lottery Master", function () {
 
       expect(await lotteryMaster.publicRoundRandomNumbersRequestId(roundId)).to.equal(1)
       await expect(lotteryMaster.fetchRoundNumbers(roundId, 50)).to.be.revertedWith("Random numbers not ready")
-      expect((await lotteryRound.getRound()).powerNumber).to.equal(0);
       await executeChainLinkVrf(roundId, winningNumbers, winningPowerNumber, referralIndexes, lotteryMaster, cyclixRandomizer, vrfMock);
 
       await expect(lotteryMaster.fetchRoundNumbers(roundId, 50)).to.be.fulfilled
       expect((await lotteryRound.getRound()).roundNumbers[0]).to.equal(winningNumbers[0]);
       expect((await lotteryRound.getRound()).roundNumbers[4]).to.equal(winningNumbers[4]);
-      expect((await lotteryRound.getRound()).powerNumber).to.equal(26);
+      expect((await lotteryRound.getRound()).roundNumbers[5]).to.equal(26);
       expect((await lotteryRound.getRound()).referralWinnersNumber).to.deep.equal(referralIndexes);
     })
 
@@ -398,7 +397,7 @@ describe("Lottery Master", function () {
 
       const roundId2 = 2
       await lotteryMaster.startNewRound(50)
-      const lotteryRound2 = await hre.ethers.getContractAt("LotteryRound", await lotteryMaster.getCurrentRound()) as LotteryRound
+      const lotteryRound2 = await hre.ethers.getContractAt("LotteryRound", await lotteryMaster.rounds(Number(await lotteryMaster.roundCount()) - 1)) as LotteryRound
 
       expect(roundId2).to.equal(2)
       await expect(lotteryMaster.connect(player3).claimVictory(5)).to.be.reverted

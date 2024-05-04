@@ -97,9 +97,9 @@ contract LotteryReader is LotteryReaderInterface, EmergencyFunctions {
         LotteryRound lotteryRound = LotteryRound(lotteryMaster.roundForId(roundId));
         Round memory roundForEvaluation = lotteryRound.getRound();
         Ticket memory ticket = lotteryRound.ticketById(roundForEvaluation.ticketIds[ticketId]);
-        bool powerNumberFound = ticket.powerNumber == roundForEvaluation.powerNumber;
-        uint16 rightNumbersForTicket = 0;
         uint16[] memory ticketNumbers = lotteryRound.numbersForTicketId(ticket.id);
+        bool powerNumberFound = ticketNumbers[5] == roundForEvaluation.roundNumbers[5];
+        uint16 rightNumbersForTicket = 0;
         for(uint16 i = 0; i < 5; i++) {
             uint16 ticketNumber = ticketNumbers[i];
             if (existInArrayNumber(ticketNumber, roundForEvaluation.roundNumbers)) {
@@ -120,9 +120,9 @@ contract LotteryReader is LotteryReaderInterface, EmergencyFunctions {
         uint16 counter = 0;
         for(uint16 ticketIndexForRound = 0; ticketIndexForRound < roundTicketCount; ticketIndexForRound++) {
             Ticket memory ticket = lotteryRound.ticketById(roundForEvaluation.ticketIds[ticketIndexForRound]);
-            bool powerNumberFound = ticket.powerNumber == roundForEvaluation.powerNumber;
-            uint16 rightNumbersForTicket = 0;
             uint16[] memory ticketNumbers = lotteryRound.numbersForTicketId(ticket.id);
+        bool powerNumberFound = ticketNumbers[5] == roundForEvaluation.roundNumbers[5];
+        uint16 rightNumbersForTicket = 0;
             for(uint16 i = 0; i < 5; i++) {
                 uint16 ticketNumber = ticketNumbers[i];
                 if (existInArrayNumber(ticketNumber, roundForEvaluation.roundNumbers)) {

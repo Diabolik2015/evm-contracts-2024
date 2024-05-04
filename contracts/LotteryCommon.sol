@@ -21,7 +21,6 @@ pragma solidity ^0.8.20;
         uint256 endTime;
         bool ended;
         uint16[] roundNumbers;
-        uint16 powerNumber;
         uint16[] referralWinnersNumber;
         uint16 referralWinnersNumberCount;
         uint256[] ticketIds;
@@ -37,7 +36,6 @@ pragma solidity ^0.8.20;
         bool claimed;
         uint256 chainId;
         RoundVictoryTier victoryTier;
-        uint16 powerNumber;
     }
 
     struct TicketResults {

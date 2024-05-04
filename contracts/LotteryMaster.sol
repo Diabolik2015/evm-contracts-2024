@@ -109,15 +109,15 @@ contract LotteryMaster is EmergencyFunctions {
 
     function buyTickets(uint256 chainId, uint16[] memory moreTicketNumbers, address referral) public {
         for (uint i = 0; i < moreTicketNumbers.length; i += 6) {
-            uint16[] memory chosenNumbers = new uint16[](5);
-            for (uint j = 0; j < 5; j++) {
+            uint16[] memory chosenNumbers = new uint16[](6);
+            for (uint j = 0; j < 6; j++) {
                 chosenNumbers[j] = moreTicketNumbers[i + j];
             }
-            buyTicket(chainId, chosenNumbers, moreTicketNumbers[5], referral);
+            buyTicket(chainId, chosenNumbers, referral);
         }
     }
 
-    function buyTicket(uint256 chainId, uint16[] memory chosenNumbers, uint16 powerNumber, address referral) public {
+    function buyTicket(uint256 chainId, uint16[] memory chosenNumbers, address referral) public {
         require(freeRounds[tx.origin] > 0 || paymentToken.allowance(tx.origin, address(this)) >= ticketPrice, "Missing Allowance");
         LotteryRound lotteryRound = LotteryRound(rounds[roundCount - 1]);
         if (freeRounds[msg.sender] > 0) {
@@ -132,7 +132,7 @@ contract LotteryMaster is EmergencyFunctions {
             addFreeRoundForBuyTicket(msg.sender, referral);
         }
 
-        lotteryRound.buyTicket(chainId, chosenNumbers, powerNumber, referral);
+        lotteryRound.buyTicket(chainId, chosenNumbers, referral);
     }
 
     function addFreeRoundForBuyTicket(address buyer, address referral) internal {
@@ -163,20 +163,19 @@ contract LotteryMaster is EmergencyFunctions {
         round.couldReceiveWinningNumbers();
         (bool fulfilled, uint256[] memory randomWords) = randomizer.getRequestStatus(publicRoundRandomNumbersRequestId[roundId]);
         require(fulfilled, "Random numbers not ready");
-        uint16[] memory roundNumbers = new uint16[](5);
-        uint16 powerNumber;
+        uint16[] memory roundNumbers = new uint16[](6);
         uint16[] memory referralWinnersNumber = new uint16[](randomWords.length - 6);
         if (fulfilled) {
-            for (uint i = 0; i < 5; i++) {
+            for (uint i = 0; i < 6; i++) {
                 roundNumbers[i] = reader.getRandomUniqueNumberInArrayForMaxValue(randomWords[i], 69, roundNumbers);
             }
-            powerNumber = uint16(randomWords[5] % 26 + 1);
+            roundNumbers[5] = uint16(randomWords[5] % 26 + 1);
             for (uint i = 6; i < randomWords.length; i++) {
                 referralWinnersNumber [i - 6] = reader.getRandomUniqueNumberInArrayForMaxValue(randomWords[i],
                     round.getRound().referralCounts, referralWinnersNumber);
             }
         }
-        round.storeWinningNumbers(roundNumbers, powerNumber, referralWinnersNumber);
+        round.storeWinningNumbers(roundNumbers, referralWinnersNumber);
         lotteryStatus = LotteryStatus(LotteryStatuses.ResultsEvaluated, block.timestamp, block.timestamp + secondsBeforeStartingClaimingInSeconds, roundId);
     }
 

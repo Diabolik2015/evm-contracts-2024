@@ -52,7 +52,6 @@ contract LotteryRound is Ownable {
             endTime: block.timestamp + roundDurationInSeconds,
             ended : false,
             roundNumbers: new uint16[](0),
-            powerNumber: 0,
             referralWinnersNumber: new uint16[](0),
             referralWinnersNumberCount : 0,
             ticketIds : new uint256[](0),
@@ -84,14 +83,14 @@ contract LotteryRound is Ownable {
         return number > 0 && number <= 26;
     }
 
-    function validateBuyTicket(uint16[] memory numbers, uint16 powerNumber, address referral ) public view onlyOwner {
+    function validateBuyTicket(uint16[] memory numbers, address referral) public view onlyOwner {
         require(tx.origin != address(0), "Invalid sender");
         require(block.timestamp < round.endTime, "Round is over");
-        require(numbers.length == 5, "Invalid numbers count");
-        for (uint i = 0; i < numbers.length; i++) {
+        require(numbers.length == 6, "Invalid numbers count");
+        for (uint i = 0; i < numbers.length - 1; i++) {
             require(numberIsInRangeForRound(numbers[i]), "Invalid numbers");
         }
-        require(numberIsInRangeForPowerNumber(powerNumber), "Invalid power number");
+        require(numberIsInRangeForPowerNumber(numbers[5]), "Invalid power number");
         require(referral != tx.origin, "Referral cannot be the same as the participant");
     }
 
@@ -117,8 +116,8 @@ contract LotteryRound is Ownable {
         victoryTierAmounts[RoundVictoryTier.Treasury] += treasuryAmountOnTicket(paymentTokenAmount);
     }
 
-    function buyTicket(uint256 chainId, uint16[] memory chosenNumbers, uint16 powerNumber, address referral) public onlyOwner {
-        validateBuyTicket(chosenNumbers, powerNumber, referral);
+    function buyTicket(uint256 chainId, uint16[] memory chosenNumbers, address referral) public onlyOwner {
+        validateBuyTicket(chosenNumbers, referral);
 
         uint256 ticketId = tickets.length;
         tickets.push(Ticket({
@@ -127,8 +126,7 @@ contract LotteryRound is Ownable {
             referralAddress: referral,
             claimed: false,
             chainId: chainId,
-            victoryTier: RoundVictoryTier.NO_WIN,
-            powerNumber: powerNumber
+            victoryTier: RoundVictoryTier.NO_WIN
         }));
         for(uint i = 0; i < chosenNumbers.length; i++) {
             ticketNumbers[ticketId].push(chosenNumbers[i]);
@@ -165,9 +163,8 @@ contract LotteryRound is Ownable {
         require(round.roundNumbers.length == 0, "Winning numbers already set");
     }
 
-    function storeWinningNumbers(uint16[] memory roundNumbers, uint16 powerNumber, uint16[] memory referralWinnersNumber) public onlyOwner {
+    function storeWinningNumbers(uint16[] memory roundNumbers, uint16[] memory referralWinnersNumber) public onlyOwner {
         round.roundNumbers = roundNumbers;
-        round.powerNumber = powerNumber;
         round.referralWinnersNumber = referralWinnersNumber;
         round.referralWinnersNumberCount = uint16(referralWinnersNumber.length);
     }
