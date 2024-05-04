@@ -33,9 +33,6 @@ contract LotteryMaster is EmergencyFunctions {
         return rounds[roundId - 1];
     }
 
-    function getCurrentRound() public view returns (address) {
-        return rounds[roundCount - 1];
-    }
     mapping(address => uint16) public freeRounds;
 
     uint16 public counterForBankWallets;
@@ -185,7 +182,7 @@ contract LotteryMaster is EmergencyFunctions {
     }
 
     function claimVictory(uint256 ticketId) public {
-        LotteryRound lotteryRound = LotteryRound(getCurrentRound());
+        LotteryRound lotteryRound = LotteryRound(rounds[roundCount - 1]);
         Ticket memory ticket = lotteryRound.ticketById(ticketId);
         require(ticket.id == ticketId, "Invalid ticket id");
         require(ticket.participantAddress == msg.sender, "Invalid ticket owner");
@@ -199,13 +196,13 @@ contract LotteryMaster is EmergencyFunctions {
         unchecked {
             uint256 amountWon = lotteryRound.victoryTierAmounts(ticket.victoryTier) / lotteryRound.winnersForEachTier(ticket.victoryTier);
             require(paymentToken.balanceOf(address(this)) >= amountWon, "Not enough funds on contract");
-            LotteryRound(getCurrentRound()).markVictoryClaimed(ticketId, amountWon);
+            LotteryRound(rounds[roundCount - 1]).markVictoryClaimed(ticketId, amountWon);
             paymentToken.transfer(msg.sender, amountWon);
         }
     }
 
     function claimReferralVictory(uint256 referralTicketId) public {
-        LotteryRound lotteryRound = LotteryRound(getCurrentRound());
+        LotteryRound lotteryRound = LotteryRound(rounds[roundCount - 1]);
         ReferralTicket memory referralTicket = lotteryRound.referralTicketById(referralTicketId);
         require(referralTicket.id == referralTicketId, "Invalid ticket id");
         require(referralTicket.referralAddress == msg.sender, "Invalid ticket owner");
@@ -216,7 +213,7 @@ contract LotteryMaster is EmergencyFunctions {
         unchecked {
             uint256 amountWon = lotteryRound.victoryTierAmounts(RoundVictoryTier.Referrer) / reader.numberOfReferralWinnersForRoundId(lotteryRound.getRound().id);
             require(paymentToken.balanceOf(address(this)) >= amountWon, "Not enough funds on contract");
-            LotteryRound(getCurrentRound()).markReferralVictoryClaimed(referralTicketId, amountWon);
+            LotteryRound(rounds[roundCount - 1]).markReferralVictoryClaimed(referralTicketId, amountWon);
             paymentToken.transfer(msg.sender, amountWon);
         }
     }
