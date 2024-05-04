@@ -3,8 +3,9 @@ pragma solidity ^0.8.20;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import { RoundVictoryTier, Round, Ticket, TicketResults, ReferralTicket, ReferralTicketResults } from "./LotteryCommon.sol";
+import {LotteryRoundInterface} from "./LotteryRoundInterface.sol";
 
-contract LotteryRound is Ownable {
+contract LotteryRound is Ownable, LotteryRoundInterface {
     Round public round;
     function getRound() public view returns (Round memory) {
         return round;
@@ -33,7 +34,7 @@ contract LotteryRound is Ownable {
     mapping(RoundVictoryTier => uint256) public winnersForEachTier;
     address public previousRound;
 
-    uint16[]  public  poolPercentagesBasePoints = [7000, 3500, 1500, 1000, 700, 500, 300, 1500, 1000, 5000];
+    uint16[]  public  poolPercentagesBasePoints = [7000, 3000, 1500, 1000, 700, 500, 300, 1500, 1000, 5000];
     function setPoolPercentagesBasePoints(uint16[] memory _poolPercentagesBasePoints) public onlyOwner {
         poolPercentagesBasePoints = _poolPercentagesBasePoints;
     }
@@ -116,13 +117,13 @@ contract LotteryRound is Ownable {
         victoryTierAmounts[RoundVictoryTier.Treasury] += treasuryAmountOnTicket(paymentTokenAmount);
     }
 
-    function buyTicket(uint256 chainId, uint16[] memory chosenNumbers, address referral) public onlyOwner {
+    function buyTicket(uint256 chainId, uint16[] memory chosenNumbers, address referral, address buyer) public onlyOwner {
         validateBuyTicket(chosenNumbers, referral);
 
         uint256 ticketId = tickets.length;
         tickets.push(Ticket({
             id: ticketId,
-            participantAddress: tx.origin,
+            participantAddress: buyer,
             referralAddress: referral,
             claimed: false,
             chainId: chainId,
@@ -134,8 +135,8 @@ contract LotteryRound is Ownable {
         round.ticketIds.push(ticketId);
         round.ticketsCount++;
 
-        roundTicketsByAddress[tx.origin].push(tickets.length - 1);
-        roundTicketsByAddressCount[tx.origin]++;
+        roundTicketsByAddress[buyer].push(tickets.length - 1);
+        roundTicketsByAddressCount[buyer]++;
         if (referral != address(0)) {
             uint256 referralTicketId = referralTickets.length;
             round.referralTicketIds.push(referralTicketId);

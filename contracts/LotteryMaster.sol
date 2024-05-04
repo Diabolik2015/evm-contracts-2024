@@ -6,7 +6,7 @@ import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IER
 import {CyclixRandomizerInterface} from "./CyclixRandomizerInterface.sol";
 import {EmergencyFunctions} from "./utils/EmergencyFunctions.sol";
 import { RoundVictoryTier, Round, Ticket, TicketResults, ReferralTicket, ReferralTicketResults } from "./LotteryCommon.sol";
-import { LotteryRound } from "./LotteryRound.sol";
+import { LotteryRoundInterface } from "./LotteryRoundInterface.sol";
 import { LotteryReaderInterface } from "./LotteryReaderInterface.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./LotteryRoundCreatorInterface.sol";
@@ -17,23 +17,19 @@ enum LotteryStatuses {
     ClaimInProgress
 }
 
-struct LotteryStatus {
-    LotteryStatuses status;
-    uint256 startTime;
-    uint256 endTime;
-    uint256 roundId;
-}
-
 contract LotteryMaster is EmergencyFunctions {
 
     uint256 public roundCount;
     address[] public rounds;
-    LotteryStatus public lotteryStatus;
-    function roundForId(uint256 roundId) public view returns (address) {
-        return rounds[roundId - 1];
-    }
+    LotteryStatuses public lotteryStatus;
+    uint256 public statusStartTime;
+    uint256 public statusEndTime;
 
     mapping(address => uint16) public freeRounds;
+    mapping(address => bool) crossChainOperator;
+    function setCrossChainOperator(address operator, bool value) public onlyOwner {
+        crossChainOperator[operator] = value;
+    }
 
     uint16 public counterForBankWallets;
     address[] public bankWallets;
@@ -78,6 +74,10 @@ contract LotteryMaster is EmergencyFunctions {
         percentageOfReferralWinners = percentage;
     }
 
+    function setPoolPercentagesBasePoints(uint16[] memory _poolPercentagesBasePoints) public onlyOwner {
+        LotteryRoundInterface(rounds[roundCount - 1]).setPoolPercentagesBasePoints(_poolPercentagesBasePoints);
+    }
+
     LotteryRoundCreatorInterface public lotteryRoundCreator;
 
     constructor(address cyclixRandomizer, address lotteryReader, address _lotteryRoundCreator, address _paymentToken, uint256 _ticketPrice)
@@ -92,44 +92,50 @@ contract LotteryMaster is EmergencyFunctions {
         bankWallets.push(msg.sender);
     }
 
-    function startNewRound(uint256 roundDurationInSeconds) public onlyOwner {
+    function startNewRound(uint256 _statusEndTime) public onlyOwner {
         roundCount++;
         if (roundCount > 1) {
-            rounds.push(lotteryRoundCreator.startNewRound(roundDurationInSeconds, rounds[roundCount - 2]));
-            require(LotteryRound(rounds[roundCount - 2]).getRound().ended, "Previous round not ended");
-            require(rounds[roundCount - 2] == LotteryRound(rounds[roundCount - 1]).previousRound(), "Previous round not propagated correctly");
+            rounds.push(lotteryRoundCreator.startNewRound(_statusEndTime, rounds[roundCount - 2]));
+            require(LotteryRoundInterface(rounds[roundCount - 2]).getRound().ended, "Previous round not ended");
+            require(rounds[roundCount - 2] == LotteryRoundInterface(rounds[roundCount - 1]).previousRound(), "Previous round not propagated correctly");
         } else {
-            rounds.push(lotteryRoundCreator.startNewRound(roundDurationInSeconds, address(0)));
+            rounds.push(lotteryRoundCreator.startNewRound(_statusEndTime, address(0)));
         }
-        lotteryStatus = LotteryStatus(LotteryStatuses.DrawOpen, block.timestamp, block.timestamp + roundDurationInSeconds, roundCount);
+        lotteryStatus = LotteryStatuses.DrawOpen;
+        statusStartTime = block.timestamp;
+        statusEndTime = block.timestamp + _statusEndTime;
     }
 
-    function buyTickets(uint256 chainId, uint16[] memory moreTicketNumbers, address referral) public {
+    function buyTickets(uint256 chainId, uint16[] memory moreTicketNumbers, address referral, address buyer) public {
         for (uint i = 0; i < moreTicketNumbers.length; i += 6) {
             uint16[] memory chosenNumbers = new uint16[](6);
             for (uint j = 0; j < 6; j++) {
                 chosenNumbers[j] = moreTicketNumbers[i + j];
             }
-            buyTicket(chainId, chosenNumbers, referral);
+            buyTicket(chainId, chosenNumbers, referral, buyer);
         }
     }
 
-    function buyTicket(uint256 chainId, uint16[] memory chosenNumbers, address referral) public {
-        require(freeRounds[tx.origin] > 0 || paymentToken.allowance(tx.origin, address(this)) >= ticketPrice, "Missing Allowance");
-        LotteryRound lotteryRound = LotteryRound(rounds[roundCount - 1]);
-        if (freeRounds[msg.sender] > 0) {
-            freeRounds[msg.sender]--;
+    function buyTicket(uint256 chainId, uint16[] memory chosenNumbers, address referral, address buyer) public {
+        require(freeRounds[buyer] > 0
+        || paymentToken.allowance(buyer, address(this)) >= ticketPrice
+        || crossChainOperator[msg.sender], "Missing Allowance");
+        LotteryRoundInterface lotteryRound = LotteryRoundInterface(rounds[roundCount - 1]);
+        if (freeRounds[buyer] > 0) {
+            freeRounds[buyer]--;
         } else {
-            require(paymentToken.balanceOf(tx.origin) >= ticketPrice, "Insufficient funds");
-            counterForBankWallets = uint16(counterForBankWallets++ % bankWallets.length);
-            uint256 treasuryAmount = lotteryRound.treasuryAmountOnTicket(ticketPrice);
-            SafeERC20.safeTransferFrom(paymentToken, msg.sender, bankWallets[counterForBankWallets], ticketPrice - treasuryAmount);
-            SafeERC20.safeTransferFrom(paymentToken, msg.sender, treasuryWallets, treasuryAmount);
+            if (!crossChainOperator[msg.sender]) {
+                require(paymentToken.balanceOf(tx.origin) >= ticketPrice, "Insufficient funds");
+                counterForBankWallets = uint16(counterForBankWallets++ % bankWallets.length);
+                uint256 treasuryAmount = lotteryRound.treasuryAmountOnTicket(ticketPrice);
+                SafeERC20.safeTransferFrom(paymentToken, buyer, bankWallets[counterForBankWallets], ticketPrice - treasuryAmount);
+                SafeERC20.safeTransferFrom(paymentToken, buyer, treasuryWallets, treasuryAmount);
+            }
             lotteryRound.updateVictoryPoolForTicket(ticketPrice);
-            addFreeRoundForBuyTicket(msg.sender, referral);
+            addFreeRoundForBuyTicket(buyer, referral);
         }
 
-        lotteryRound.buyTicket(chainId, chosenNumbers, referral);
+        lotteryRound.buyTicket(chainId, chosenNumbers, referral, buyer);
     }
 
     function addFreeRoundForBuyTicket(address buyer, address referral) internal {
@@ -147,16 +153,18 @@ contract LotteryMaster is EmergencyFunctions {
 
     mapping(uint256 => uint256) public publicRoundRandomNumbersRequestId;
 
-    function closeRound(uint256 durationOfResultEvaluationInSeconds) external onlyOwner {
-        LotteryRound lotteryRound = LotteryRound(rounds[roundCount - 1]);
+    function closeRound(uint256 _statusEndTime) external onlyOwner {
+        LotteryRoundInterface lotteryRound = LotteryRoundInterface(rounds[roundCount - 1]);
         lotteryRound.closeRound();
         uint16 referralWinners = reader.numberOfReferralWinnersForRoundId(roundCount);
         publicRoundRandomNumbersRequestId[roundCount] = randomizer.requestRandomWords(6 + referralWinners);
-        lotteryStatus = LotteryStatus(LotteryStatuses.EvaluatingResults, block.timestamp, block.timestamp + durationOfResultEvaluationInSeconds, roundCount);
+        lotteryStatus = LotteryStatuses.EvaluatingResults;
+        statusStartTime = block.timestamp;
+        statusEndTime = block.timestamp + _statusEndTime;
     }
 
-    function fetchRoundNumbers(uint256 roundId, uint256 secondsBeforeStartingClaimingInSeconds) external onlyOwner {
-        LotteryRound round = LotteryRound(rounds[roundId - 1]);
+    function fetchRoundNumbers(uint256 roundId, uint256 _statusEndTime) external onlyOwner {
+        LotteryRoundInterface round = LotteryRoundInterface(rounds[roundId - 1]);
         round.couldReceiveWinningNumbers();
         (bool fulfilled, uint256[] memory randomWords) = randomizer.getRequestStatus(publicRoundRandomNumbersRequestId[roundId]);
         require(fulfilled, "Random numbers not ready");
@@ -173,36 +181,40 @@ contract LotteryMaster is EmergencyFunctions {
             }
         }
         round.storeWinningNumbers(roundNumbers, referralWinnersNumber);
-        lotteryStatus = LotteryStatus(LotteryStatuses.ResultsEvaluated, block.timestamp, block.timestamp + secondsBeforeStartingClaimingInSeconds, roundId);
+        lotteryStatus = LotteryStatuses.ResultsEvaluated;
+        statusStartTime = block.timestamp;
+        statusEndTime = block.timestamp + _statusEndTime;
     }
 
     function markWinners(uint256 roundId, uint256 claimingTimeInSeconds) public onlyOwner {
-        LotteryRound(rounds[roundId - 1]).markWinners(reader.evaluateWonResultsForTickets(roundId), reader.evaluateWonResultsForReferral(roundId));
-        lotteryStatus = LotteryStatus(LotteryStatuses.ClaimInProgress, block.timestamp, block.timestamp + claimingTimeInSeconds, roundId);
+        LotteryRoundInterface(rounds[roundId - 1]).markWinners(reader.evaluateWonResultsForTickets(roundId), reader.evaluateWonResultsForReferral(roundId));
+        lotteryStatus = LotteryStatuses.ClaimInProgress;
+        statusStartTime = block.timestamp;
+        statusEndTime = block.timestamp + claimingTimeInSeconds;
     }
 
     function claimVictory(uint256 ticketId) public {
-        LotteryRound lotteryRound = LotteryRound(rounds[roundCount - 1]);
+        LotteryRoundInterface lotteryRound = LotteryRoundInterface(rounds[roundCount - 1]);
         Ticket memory ticket = lotteryRound.ticketById(ticketId);
         require(ticket.id == ticketId, "Invalid ticket id");
         require(ticket.participantAddress == msg.sender, "Invalid ticket owner");
         require(!ticket.claimed, "Ticket already claimed");
         require(lotteryRound.getRound().ended, "Round not ended");
-        require(lotteryStatus.status == LotteryStatuses.ClaimInProgress, "Claim not started");
-        require(block.timestamp > lotteryStatus.startTime, "Claim not started: too early");
-        require(block.timestamp < lotteryStatus.endTime, "Claim not started: too late");
+        require(lotteryStatus == LotteryStatuses.ClaimInProgress, "Claim not started");
+        require(block.timestamp > statusStartTime, "Claim not started: too early");
+        require(block.timestamp < statusEndTime, "Claim not started: too late");
         require(ticket.victoryTier != RoundVictoryTier.NO_WIN, "No prize for this ticket");
         require(ticket.victoryTier == reader.evaluateWonResultsForOneTicket(lotteryRound.getRound().id, ticketId).victoryTier, "Invalid ticket tier");
         unchecked {
             uint256 amountWon = lotteryRound.victoryTierAmounts(ticket.victoryTier) / lotteryRound.winnersForEachTier(ticket.victoryTier);
             require(paymentToken.balanceOf(address(this)) >= amountWon, "Not enough funds on contract");
-            LotteryRound(rounds[roundCount - 1]).markVictoryClaimed(ticketId, amountWon);
+            LotteryRoundInterface(rounds[roundCount - 1]).markVictoryClaimed(ticketId, amountWon);
             paymentToken.transfer(msg.sender, amountWon);
         }
     }
 
     function claimReferralVictory(uint256 referralTicketId) public {
-        LotteryRound lotteryRound = LotteryRound(rounds[roundCount - 1]);
+        LotteryRoundInterface lotteryRound = LotteryRoundInterface(rounds[roundCount - 1]);
         ReferralTicket memory referralTicket = lotteryRound.referralTicketById(referralTicketId);
         require(referralTicket.id == referralTicketId, "Invalid ticket id");
         require(referralTicket.referralAddress == msg.sender, "Invalid ticket owner");
@@ -213,7 +225,7 @@ contract LotteryMaster is EmergencyFunctions {
         unchecked {
             uint256 amountWon = lotteryRound.victoryTierAmounts(RoundVictoryTier.Referrer) / reader.numberOfReferralWinnersForRoundId(lotteryRound.getRound().id);
             require(paymentToken.balanceOf(address(this)) >= amountWon, "Not enough funds on contract");
-            LotteryRound(rounds[roundCount - 1]).markReferralVictoryClaimed(referralTicketId, amountWon);
+            LotteryRoundInterface(rounds[roundCount - 1]).markReferralVictoryClaimed(referralTicketId, amountWon);
             paymentToken.transfer(msg.sender, amountWon);
         }
     }
