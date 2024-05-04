@@ -34,7 +34,7 @@ contract LotteryRound is Ownable, LotteryRoundInterface {
     mapping(RoundVictoryTier => uint256) public winnersForEachTier;
     address public previousRound;
 
-    uint16[]  public  poolPercentagesBasePoints = [7000, 3000, 1500, 1000, 700, 500, 300, 1500, 1000, 5000];
+    uint16[]  public  poolPercentagesBasePoints = [3000, 1500, 1000, 700, 500, 300, 1500, 1000, 500];
     function setPoolPercentagesBasePoints(uint16[] memory _poolPercentagesBasePoints) public onlyOwner {
         poolPercentagesBasePoints = _poolPercentagesBasePoints;
     }
@@ -100,20 +100,20 @@ contract LotteryRound is Ownable, LotteryRoundInterface {
     }
 
     function treasuryAmountOnTicket(uint256 paymentTokenAmount) public view returns (uint256) {
-        return percentageInBasisPoint(paymentTokenAmount, poolPercentagesBasePoints[9]);
+        return percentageInBasisPoint(paymentTokenAmount, poolPercentagesBasePoints[8]);
     }
 
     function updateVictoryPoolForTicket(uint256 paymentTokenAmount) public onlyOwner {
-        uint256 forPublicPool = percentageInBasisPoint(paymentTokenAmount, poolPercentagesBasePoints[0]);
-        victoryTierAmounts[RoundVictoryTier.Tier5_1] += percentageInBasisPoint(forPublicPool, poolPercentagesBasePoints[1]);
-        victoryTierAmounts[RoundVictoryTier.Tier5] += percentageInBasisPoint(forPublicPool, poolPercentagesBasePoints[2]);
-        victoryTierAmounts[RoundVictoryTier.Tier4_1] += percentageInBasisPoint(forPublicPool, poolPercentagesBasePoints[3]);
-        victoryTierAmounts[RoundVictoryTier.Tier4] += percentageInBasisPoint(forPublicPool, poolPercentagesBasePoints[4]);
-        victoryTierAmounts[RoundVictoryTier.Tier3_1] += percentageInBasisPoint(forPublicPool, poolPercentagesBasePoints[5]);
-        victoryTierAmounts[RoundVictoryTier.Tier3] += percentageInBasisPoint(forPublicPool, poolPercentagesBasePoints[6]);
+        uint256 forPublicPool = paymentTokenAmount;
+        victoryTierAmounts[RoundVictoryTier.Tier5_1] += percentageInBasisPoint(forPublicPool, poolPercentagesBasePoints[0]);
+        victoryTierAmounts[RoundVictoryTier.Tier5] += percentageInBasisPoint(forPublicPool, poolPercentagesBasePoints[1]);
+        victoryTierAmounts[RoundVictoryTier.Tier4_1] += percentageInBasisPoint(forPublicPool, poolPercentagesBasePoints[2]);
+        victoryTierAmounts[RoundVictoryTier.Tier4] += percentageInBasisPoint(forPublicPool, poolPercentagesBasePoints[3]);
+        victoryTierAmounts[RoundVictoryTier.Tier3_1] += percentageInBasisPoint(forPublicPool, poolPercentagesBasePoints[4]);
+        victoryTierAmounts[RoundVictoryTier.Tier3] += percentageInBasisPoint(forPublicPool, poolPercentagesBasePoints[5]);
         victoryTierAmounts[RoundVictoryTier.PublicPool] += forPublicPool;
-        victoryTierAmounts[RoundVictoryTier.Referrer] += percentageInBasisPoint(paymentTokenAmount, poolPercentagesBasePoints[7]);
-        victoryTierAmounts[RoundVictoryTier.TokenHolders] += percentageInBasisPoint(paymentTokenAmount, poolPercentagesBasePoints[8]);
+        victoryTierAmounts[RoundVictoryTier.Referrer] += percentageInBasisPoint(paymentTokenAmount, poolPercentagesBasePoints[6]);
+        victoryTierAmounts[RoundVictoryTier.TokenHolders] += percentageInBasisPoint(paymentTokenAmount, poolPercentagesBasePoints[7]);
         victoryTierAmounts[RoundVictoryTier.Treasury] += treasuryAmountOnTicket(paymentTokenAmount);
     }
 

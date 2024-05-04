@@ -234,15 +234,15 @@ describe("Lottery Master", function () {
       const round = await lotteryRound.getRound();
       expect(round.ticketsCount).to.equal(10)
       const reader = await lotteryMaster.reader()
-      expect(await lotteryReader.poolForVictoryTier(round.id, 1)).to.equal(toEtherBigInt((80 * 0.7 * 0.30).toPrecision(3)))
-      expect(await lotteryReader.poolForVictoryTier(round.id, 2)).to.equal(toEtherBigInt((80 * 0.7 * 0.15).toPrecision(3)))
-      expect(await lotteryReader.poolForVictoryTier(round.id, 3)).to.equal(toEtherBigInt((80 * 0.7 * 0.1).toPrecision(3)))
-      expect(await lotteryReader.poolForVictoryTier(round.id, 4)).to.equal(toEtherBigInt((80 * 0.7 * 0.07).toPrecision(3)))
-      expect(await lotteryReader.poolForVictoryTier(round.id, 5)).to.equal(toEtherBigInt((80 * 0.7 * 0.05).toPrecision(3)))
-      expect(await lotteryReader.poolForVictoryTier(round.id, 6)).to.equal(toEtherBigInt((80 * 0.7 * 0.03).toPrecision(3)))
+      expect(await lotteryReader.poolForVictoryTier(round.id, 1)).to.equal(toEtherBigInt((80 * 0.30).toPrecision(3)))
+      expect(await lotteryReader.poolForVictoryTier(round.id, 2)).to.equal(toEtherBigInt((80 * 0.15).toPrecision(3)))
+      expect(await lotteryReader.poolForVictoryTier(round.id, 3)).to.equal(toEtherBigInt((80 * 0.1).toPrecision(3)))
+      expect(await lotteryReader.poolForVictoryTier(round.id, 4)).to.equal(toEtherBigInt((80 * 0.07).toPrecision(3)))
+      expect(await lotteryReader.poolForVictoryTier(round.id, 5)).to.equal(toEtherBigInt((80 * 0.05).toPrecision(3)))
+      expect(await lotteryReader.poolForVictoryTier(round.id, 6)).to.equal(toEtherBigInt((80 * 0.03).toPrecision(3)))
       expect(await lotteryReader.poolForReferral(round.id)).to.equal(toEtherBigInt((80 * 0.15).toPrecision(3)))
       expect(await lotteryReader.tokenHoldersPoolAmount(round.id)).to.equal(toEtherBigInt((80 * 0.10).toPrecision(3)))
-      expect(await lotteryReader.treasuryPoolAmount(round.id)).to.equal(toEtherBigInt((80 * 0.5).toPrecision(3)))
+      expect(await lotteryReader.treasuryPoolAmount(round.id)).to.equal(toEtherBigInt((80 * 0.05).toPrecision(3)))
     })
 
     it("Should have always different numbers for draw also if the randomizer return two times the same number", async function () {
@@ -349,7 +349,7 @@ describe("Lottery Master", function () {
       await expect(lotteryMaster.connect(player2).claimVictory(0)).to.be.revertedWith("Invalid ticket owner")
       await expect(lotteryMaster.connect(player1).claimVictory(0)).to.be.revertedWith("Not enough funds on contract")
 
-      expect(await lotteryReader.amountWonInRound(roundId)).to.be.lt(toEtherBigInt(85))
+      expect(await lotteryReader.amountWonInRound(roundId)).to.be.equal(toEtherBigInt(85))
       await usdtContract.connect(owner).transfer(await lotteryMaster.getAddress(), await lotteryReader.amountWonInRound(round.id))
 
       await lotteryMaster.connect(player1).claimVictory(0)
