@@ -10,11 +10,25 @@ import { LotteryRound } from "./LotteryRound.sol";
 import { LotteryReaderInterface } from "./LotteryReaderInterface.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./LotteryRoundCreatorInterface.sol";
+enum LotteryStatuses {
+    DrawOpen,
+    EvaluatingResults,
+    ResultsEvaluated,
+    ClaimInProgress
+}
+
+struct LotteryStatus {
+    LotteryStatuses status;
+    uint256 startTime;
+    uint256 endTime;
+    uint256 roundId;
+}
 
 contract LotteryMaster is EmergencyFunctions {
 
     uint256 public roundCount;
     address[] public rounds;
+    LotteryStatus public lotteryStatus;
     function roundForId(uint256 roundId) public view returns (address) {
         return rounds[roundId - 1];
     }
@@ -90,6 +104,7 @@ contract LotteryMaster is EmergencyFunctions {
         } else {
             rounds.push(lotteryRoundCreator.startNewRound(roundDurationInSeconds, address(0)));
         }
+        lotteryStatus = LotteryStatus(LotteryStatuses.DrawOpen, block.timestamp, block.timestamp + roundDurationInSeconds, roundCount);
     }
 
     function buyTickets(uint256 chainId, uint16[] memory moreTicketNumbers, address referral) public {
@@ -135,14 +150,15 @@ contract LotteryMaster is EmergencyFunctions {
 
     mapping(uint256 => uint256) public publicRoundRandomNumbersRequestId;
 
-    function closeRound() external onlyOwner {
+    function closeRound(uint256 durationOfResultEvaluationInSeconds) external onlyOwner {
         LotteryRound lotteryRound = LotteryRound(rounds[roundCount - 1]);
         lotteryRound.closeRound();
         uint16 referralWinners = reader.numberOfReferralWinnersForRoundId(roundCount);
         publicRoundRandomNumbersRequestId[roundCount] = randomizer.requestRandomWords(6 + referralWinners);
+        lotteryStatus = LotteryStatus(LotteryStatuses.EvaluatingResults, block.timestamp, block.timestamp + durationOfResultEvaluationInSeconds, roundCount);
     }
 
-    function fetchRoundNumbers(uint256 roundId) external onlyOwner {
+    function fetchRoundNumbers(uint256 roundId, uint256 secondsBeforeStartingClaimingInSeconds) external onlyOwner {
         LotteryRound round = LotteryRound(rounds[roundId - 1]);
         round.couldReceiveWinningNumbers();
         (bool fulfilled, uint256[] memory randomWords) = randomizer.getRequestStatus(publicRoundRandomNumbersRequestId[roundId]);
@@ -161,10 +177,12 @@ contract LotteryMaster is EmergencyFunctions {
             }
         }
         round.storeWinningNumbers(roundNumbers, powerNumber, referralWinnersNumber);
+        lotteryStatus = LotteryStatus(LotteryStatuses.ResultsEvaluated, block.timestamp, block.timestamp + secondsBeforeStartingClaimingInSeconds, roundId);
     }
 
-    function markWinners(uint256 roundId) public onlyOwner {
+    function markWinners(uint256 roundId, uint256 claimingTimeInSeconds) public onlyOwner {
         LotteryRound(rounds[roundId - 1]).markWinners(reader.evaluateWonResultsForTickets(roundId), reader.evaluateWonResultsForReferral(roundId));
+        lotteryStatus = LotteryStatus(LotteryStatuses.ClaimInProgress, block.timestamp, block.timestamp + claimingTimeInSeconds, roundId);
     }
 
     function claimVictory(uint256 ticketId) public {
@@ -174,6 +192,9 @@ contract LotteryMaster is EmergencyFunctions {
         require(ticket.participantAddress == msg.sender, "Invalid ticket owner");
         require(!ticket.claimed, "Ticket already claimed");
         require(lotteryRound.getRound().ended, "Round not ended");
+        require(lotteryStatus.status == LotteryStatuses.ClaimInProgress, "Claim not started");
+        require(block.timestamp > lotteryStatus.startTime, "Claim not started: too early");
+        require(block.timestamp < lotteryStatus.endTime, "Claim not started: too late");
         require(ticket.victoryTier != RoundVictoryTier.NO_WIN, "No prize for this ticket");
         require(ticket.victoryTier == reader.evaluateWonResultsForOneTicket(lotteryRound.getRound().id, ticketId).victoryTier, "Invalid ticket tier");
         unchecked {
