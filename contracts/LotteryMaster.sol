@@ -26,7 +26,7 @@ contract LotteryMaster is EmergencyFunctions {
     uint256 public statusEndTime;
 
     mapping(address => uint16) public freeRounds;
-    mapping(address => bool) crossChainOperator;
+    mapping(address => bool) public crossChainOperator;
     function setCrossChainOperator(address operator, bool value) public onlyOwner {
         crossChainOperator[operator] = value;
     }
