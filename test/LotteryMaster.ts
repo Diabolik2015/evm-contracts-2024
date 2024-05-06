@@ -2,11 +2,9 @@ import {expect} from "chai";
 import hre from "hardhat";
 import {deployAndSetupCyclixRandomizer, toEtherBigInt} from "./common";
 import {HardhatEthersSigner} from "@nomicfoundation/hardhat-ethers/src/signers";
-import {LotteryMaster, LotteryReader, LotteryRound, TestUsdt} from "../typechain-types";
-import {AddressLike} from "ethers";
-import { time } from "@nomicfoundation/hardhat-network-helpers";
+import {LotteryMaster, LotteryRound, TestUsdt, VRFCoordinatorV2Mock} from "../typechain-types";
+import {time} from "@nomicfoundation/hardhat-network-helpers";
 
-import {VRFCoordinatorV2Mock} from "../typechain-types";
 `r`
 let owner: HardhatEthersSigner
 let player1: HardhatEthersSigner
@@ -44,7 +42,7 @@ describe("Lottery Master", function () {
 
     const lotteryMasterFactory = await hre.ethers.getContractFactory("LotteryMaster");
     const lotteryMaster = await lotteryMasterFactory.deploy(cyclixRandomizer.getAddress(), lotteryReader.getAddress(),
-        lotteryRoundCreator.getAddress(), usdtContract, 10)
+        lotteryRoundCreator.getAddress(), usdtContract, 10, false)
     await lotteryRoundCreator.transferOwnership(lotteryMaster.getAddress())
     await lotteryReader.setLotteryMaster(lotteryMaster.getAddress());
 
@@ -394,6 +392,7 @@ describe("Lottery Master", function () {
       await lotteryMaster.connect(referral1).claimVictory(7)
       expect(await lotteryRound.victoryTierAmountsClaimed(6)).to.equal((await lotteryRound.victoryTierAmounts(6)) / BigInt(2))
 
+      await time.increase(50)
       const roundId2 = 2
       await lotteryMaster.startNewRound(50)
       const lotteryRound2 = await hre.ethers.getContractAt("LotteryRound", await lotteryMaster.rounds(Number(await lotteryMaster.roundCount()) - 1)) as LotteryRound

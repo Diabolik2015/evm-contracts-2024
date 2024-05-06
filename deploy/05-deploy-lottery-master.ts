@@ -14,7 +14,7 @@ const deployLotteryMaster: DeployFunction = async (hre: HardhatRuntimeEnvironmen
     const lotteryMaster = await deploy("LotteryMaster", {
         from: deployer,
         log: true,
-        args: [cyclixRandomizer.address, lotteryReader.address, lotteryRoundCreator.address, testUsdt.address, 10],
+        args: [cyclixRandomizer.address, lotteryReader.address, lotteryRoundCreator.address, testUsdt.address, 10, true],
         nonce: "pending",
     });
     const lotteryMasterFactory = await hre.ethers.getContractFactory("LotteryMaster");
@@ -26,10 +26,6 @@ const deployLotteryMaster: DeployFunction = async (hre: HardhatRuntimeEnvironmen
         await lotteryReaderContract.connect(await hre.ethers.getSigner(deployer)).setLotteryMaster(lotteryMaster.address);
         console.log("Lottery Reader rightly attached to Lottery Master:", lotteryReader.address, lotteryMaster.address, await lotteryReaderContract.lotteryMaster());
     }
-    if (!await lotteryMasterContract.freeRoundsAreEnabled()) {
-        await lotteryMasterContract.setFreeRoundsOnPurchase(true);
-    }
-
     const lotteryRoundCreatorFactory = await hre.ethers.getContractFactory("LotteryRoundCreator");
     const lotteryRoundCreatorContract = lotteryRoundCreatorFactory.attach(lotteryRoundCreator.address) as LotteryRoundCreator;
 

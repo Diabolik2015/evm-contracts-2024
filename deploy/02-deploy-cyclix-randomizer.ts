@@ -1,6 +1,7 @@
 import { DeployFunction } from "hardhat-deploy/dist/types";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import { network } from "hardhat";
+import {VRFCoordinatorV2Interface} from "../typechain-types";
 
 const deployCyclixRandomizer: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     const { deploy } = hre.deployments;
@@ -14,11 +15,11 @@ const deployCyclixRandomizer: DeployFunction = async (hre: HardhatRuntimeEnviron
         args = [0, "0x354d2f95da55398f44b7cff77da56283d9c6c829a4bdf1bbcaf2ad6a4d081f61", hre.ethers.ZeroAddress];
     } else { // @ts-ignore
         if (chainId == 43113) {
-                args = [2366, "0x354d2f95da55398f44b7cff77da56283d9c6c829a4bdf1bbcaf2ad6a4d081f61", "0x2eD832Ba664535e5886b75D64C46EB9a228C2610"];
-            }
+            args = [2366, "0xc799bd1e3bd4d1a41cd4968997a4e03dfd2a3c7c04b695881138580163f42887", "0x5C210eF41CD1a72de73bF76eC39637bB0d3d7BEE"];
+        }
     }
 
-    await deploy("CyclixRandomizer", {
+    const contractDeployed = await deploy("CyclixRandomizer", {
         from: deployer,
         log: true,
         // @ts-ignore
