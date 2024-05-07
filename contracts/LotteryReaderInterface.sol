@@ -23,4 +23,6 @@ interface LotteryReaderInterface {
     function evaluateWonResultsForOneReferralTicket(uint256 roundId, uint256 referralTicketId) external view returns (ReferralTicketResults memory);
     function evaluateWonResultsForReferral(uint256 roundId) external view returns (ReferralTicketResults[] memory);
     function amountWonInRound(uint256 roundId) external view returns (uint256) ;
+    function roundNumbers(uint256 roundId) external view returns(uint16[] memory);
+    function referralWinnersNumber(uint256 roundId) external view returns(uint16[] memory);
 }

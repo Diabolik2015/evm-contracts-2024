@@ -47,7 +47,7 @@ contract CyclixRandomizer is CyclixRandomizerInterface, VRFConsumerBaseV2, Confi
     // this limit based on the network that you select, the size of the request,
     // and the processing of the callback request in the fulfillRandomWords()
     // function.
-    uint32 public callbackGasLimitForOneWord = 3000;
+    uint32 public callbackGasLimitForOneWord = 30000;
     function setCallbackGasLimitForOneWord(uint32 newGas) external onlyOwner {
         callbackGasLimitForOneWord = newGas;
     }

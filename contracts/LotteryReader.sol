@@ -26,6 +26,16 @@ contract LotteryReader is LotteryReaderInterface, EmergencyFunctions {
         return LotteryRound(lotteryMaster.rounds(roundId -1)).victoryTierAmounts(victoryTier);
     }
 
+    function roundNumbers(uint256 roundId) public view returns(uint16[] memory) {
+        Round memory round = LotteryRound(lotteryMaster.rounds(roundId -1)).getRound();
+        return round.roundNumbers;
+    }
+
+    function referralWinnersNumber(uint256 roundId) public view returns(uint16[] memory) {
+        Round memory round = LotteryRound(lotteryMaster.rounds(roundId -1)).getRound();
+        return round.referralWinnersNumber;
+    }
+
     function poolForReferral(uint256 roundId) public view override returns(uint256) {
         return LotteryRound(lotteryMaster.rounds(roundId -1)).victoryTierAmounts(RoundVictoryTier.Referrer);
     }
