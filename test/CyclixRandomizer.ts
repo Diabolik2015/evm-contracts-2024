@@ -30,9 +30,10 @@ describe("Cyclix Randomizer", function () {
 
     it ("Should be able to fulfill random words", async function () {
       const { cyclixRandomizer , vrfMock } = await deployAndSetupCyclixRandomizer();
+      const [owner] = await hre.ethers.getSigners();
       await cyclixRandomizer.requestRandomWords(1);
 
-      const requestId = await cyclixRandomizer.getLastRequestIdForCaller();
+      const requestId = await cyclixRandomizer.getLastRequestIdForCaller(owner.address);
       expect(requestId).is.not.equal(0);
 
       let requestStatus = await cyclixRandomizer.getRequestStatus(requestId)
@@ -40,7 +41,7 @@ describe("Cyclix Randomizer", function () {
 
       const randomWords = 1001;
       // await vrfMock.fulfillRandomWords(requestId, await cyclixRandomizer.getAddress());
-      await vrfMock.fulfillRandomWordsWithOverride(await cyclixRandomizer.getLastRequestIdForCaller(), await cyclixRandomizer.getAddress(), [randomWords]);
+      await vrfMock.fulfillRandomWordsWithOverride(await cyclixRandomizer.getLastRequestIdForCaller(owner.address), await cyclixRandomizer.getAddress(), [randomWords]);
       requestStatus = await cyclixRandomizer.getRequestStatus(requestId)
       expect(requestStatus.fulfilled).is.equal(true);
       expect(requestStatus.randomWords[0]).is.equal(BigInt(randomWords));

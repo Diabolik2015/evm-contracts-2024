@@ -7,11 +7,15 @@ import {VRFConsumerBaseV2} from "@chainlink/contracts/src/v0.8/vrf/VRFConsumerBa
 import {ConfirmedOwner} from "@chainlink/contracts/src/v0.8/shared/access/ConfirmedOwner.sol";
 import {CyclixRandomizerInterface} from "./CyclixRandomizerInterface.sol";
 
+
+// File contracts/CyclixRandomizer.sol
+
 contract CyclixRandomizer is CyclixRandomizerInterface, VRFConsumerBaseV2, ConfirmedOwner {
     event RequestSent(uint256 requestId, uint32 numWords, address requestor);
     event RequestFulfilled(uint256 requestId, uint256[] randomWords);
 
     struct RequestStatus {
+        uint32 wordsCount; // number of words requested
         bool fulfilled; // whether the request has been successfully fulfilled
         bool exists; // whether a requestId exists
         uint256[] randomWords;
@@ -22,7 +26,10 @@ contract CyclixRandomizer is CyclixRandomizerInterface, VRFConsumerBaseV2, Confi
     mapping(address => string) public gameContractName;
     mapping(address => uint256) public gameContractRequestsCount;
     mapping(address => uint256[]) public gameContractRequests;
-    VRFCoordinatorV2Interface COORDINATOR;
+    VRFCoordinatorV2Interface public coordinator;
+    function updateCoordinator(address _vrfCoordinator) public onlyOwner{
+        coordinator = VRFCoordinatorV2Interface(_vrfCoordinator);
+    }
 
     // Your subscription ID.
     uint64 s_subscriptionId;
@@ -40,17 +47,18 @@ contract CyclixRandomizer is CyclixRandomizerInterface, VRFConsumerBaseV2, Confi
     // this limit based on the network that you select, the size of the request,
     // and the processing of the callback request in the fulfillRandomWords()
     // function.
-    uint32 callbackGasLimitForOneWord = 34000;
+    uint32 public callbackGasLimitForOneWord = 3000;
     function setCallbackGasLimitForOneWord(uint32 newGas) external onlyOwner {
         callbackGasLimitForOneWord = newGas;
     }
-    uint16 requestConfirmations = 3;
+    uint16 public requestConfirmations = 3;
+    mapping(uint256 => uint256) public randomWordsRecoverRequest;
 
     constructor(uint64 subscriptionId, bytes32 _keyHash, address coordinatorAddress)
     VRFConsumerBaseV2(coordinatorAddress)
     ConfirmedOwner(msg.sender)
     {
-        COORDINATOR = VRFCoordinatorV2Interface(coordinatorAddress);
+        coordinator = VRFCoordinatorV2Interface(coordinatorAddress);
         s_subscriptionId = subscriptionId;
         keyHash = _keyHash;
     }
@@ -73,10 +81,11 @@ contract CyclixRandomizer is CyclixRandomizerInterface, VRFConsumerBaseV2, Confi
         require(msg.sender == owner() || gameContractAdded[msg.sender], "Only Owner and Game can request random number");
         uint32 callbackGasLimit = callbackGasLimitForOneWord;
 
-        requestId = COORDINATOR.requestRandomWords(keyHash, s_subscriptionId,
+        requestId = coordinator.requestRandomWords(keyHash, s_subscriptionId,
             requestConfirmations, callbackGasLimit * numWords, numWords);
 
         s_requests[requestId] = RequestStatus({
+            wordsCount: numWords,
             randomWords: new uint256[](0),
             exists: true,
             fulfilled: false
@@ -99,15 +108,28 @@ contract CyclixRandomizer is CyclixRandomizerInterface, VRFConsumerBaseV2, Confi
         emit RequestFulfilled(_requestId, _randomWords);
     }
 
-    function getLastRequestIdForCaller() public view returns (uint256) {
-        return gameContractRequests[msg.sender][gameContractRequestsCount[msg.sender] - 1];
+    function getLastRequestIdForCaller(address _gameAddress) public view returns (uint256) {
+        return gameContractRequests[_gameAddress][gameContractRequestsCount[_gameAddress] - 1];
+    }
+
+    function recoverLostNumberRequest(uint256 _requestId) public onlyOwner returns (uint256) {
+        require(s_requests[_requestId].exists, "request not found");
+        require(s_requests[_requestId].fulfilled == false, "request already fulfilled");
+        RequestStatus memory request = s_requests[_requestId];
+        randomWordsRecoverRequest[_requestId] = requestRandomWords(request.wordsCount);
+        return randomWordsRecoverRequest[_requestId];
     }
 
     function getRequestStatus(
         uint256 _requestId
     ) public view returns (bool fulfilled, uint256[] memory randomWords) {
         require(s_requests[_requestId].exists, "request not found");
-        RequestStatus memory request = s_requests[_requestId];
-        return (request.fulfilled, request.randomWords);
+        if (s_requests[randomWordsRecoverRequest[_requestId]].exists) {
+            RequestStatus memory request = s_requests[randomWordsRecoverRequest[_requestId]];
+            return (request.fulfilled, request.randomWords);
+        } else {
+            RequestStatus memory request = s_requests[_requestId];
+            return (request.fulfilled, request.randomWords);
+        }
     }
 }

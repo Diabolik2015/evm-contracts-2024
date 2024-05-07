@@ -29,12 +29,12 @@ const deployLotteryMaster: DeployFunction = async (hre: HardhatRuntimeEnvironmen
     const lotteryRoundCreatorFactory = await hre.ethers.getContractFactory("LotteryRoundCreator");
     const lotteryRoundCreatorContract = lotteryRoundCreatorFactory.attach(lotteryRoundCreator.address) as LotteryRoundCreator;
 
-    if (await lotteryRoundCreatorContract.owner() != lotteryMaster.address) {
+    const [owner] = await hre.ethers.getSigners();
+    if ((await lotteryRoundCreatorContract.owner()) != lotteryMaster.address) {
         console.log("Attempting to transfer ownership of Lottery Round Creator to Lottery Master:", lotteryRoundCreator.address, lotteryMaster.address, await lotteryRoundCreatorContract.owner());
-        await lotteryRoundCreatorContract.connect(await hre.ethers.getSigner(deployer)).transferOwnership(lotteryMaster.address);
+        await lotteryRoundCreatorContract.connect(owner).transferOwnership(lotteryMaster.address);
         console.log("Lottery Round Creator rightly transferred to Lottery Master:", lotteryRoundCreator.address, lotteryMaster.address, await lotteryRoundCreatorContract.owner());
     }
-
 };
 
 export default deployLotteryMaster;
