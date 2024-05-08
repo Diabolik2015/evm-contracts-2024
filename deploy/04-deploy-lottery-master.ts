@@ -1,7 +1,6 @@
 import {DeployFunction} from "hardhat-deploy/dist/types";
 import {HardhatRuntimeEnvironment} from "hardhat/types";
-import {LotteryMaster, LotteryReader, LotteryRoundCreator} from "../typechain-types";
-import {LotteryRound} from "../typechain-types/contracts/LotteryMaster.sol/LotteryRound";
+import {LotteryRoundCreator} from "../typechain-types";
 
 const deployLotteryRoundCreator: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     const { deploy } = hre.deployments;
@@ -13,6 +12,7 @@ const deployLotteryRoundCreator: DeployFunction = async (hre: HardhatRuntimeEnvi
         args: [],
         nonce: "pending",
     });
+    await new Promise(f => setTimeout(f, 2000));
 };
 
 export default deployLotteryRoundCreator;

@@ -21,7 +21,7 @@ pragma solidity ^0.8.20;
         uint256 endTime;
         bool ended;
         uint16[] roundNumbers;
-        uint16[] referralWinnersNumber;
+        uint256[] referralWinnersNumber;
         uint16 referralWinnersNumberCount;
         uint256[] ticketIds;
         uint16 ticketsCount;
@@ -42,12 +42,15 @@ pragma solidity ^0.8.20;
         uint256 ticketId;
         address participantAddress;
         RoundVictoryTier victoryTier;
+        bool won;
+        bool claimed;
+        uint256 amountWon;
     }
 
     struct ReferralTicket {
         uint256 id;
         address referralAddress;
-        uint16 referralTicketNumber;
+        uint256 referralTicketNumber;
         bool winner;
         bool claimed;
     }
@@ -55,5 +58,8 @@ pragma solidity ^0.8.20;
     struct ReferralTicketResults {
         uint256 referralTicketId;
         address referralAddress;
+        uint256 referralTicketNumber;
         bool won;
+        bool claimed;
+        uint256 amountWon;
     }

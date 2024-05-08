@@ -14,15 +14,18 @@ interface LotteryReaderInterface {
     function tokenHoldersPoolAmount(uint256 roundId) external view returns (uint256) ;
     function treasuryPoolAmount(uint256 roundId) external view returns (uint256) ;
     function numberOfReferralWinnersForRoundId(uint256 roundId) external view returns (uint16) ;
+    function existInArrayBigNumber(uint256 num, uint256[] memory arr) external pure returns (bool) ;
     function existInArrayNumber(uint16 num, uint16[] memory arr) external pure returns (bool) ;
     function notExistInArrayNumber(uint16 num, uint16[] memory arr) external pure returns (bool) ;
     function getRandomUniqueNumberInArrayForMaxValue(uint256 randomNumber, uint16 maxValue, uint16[] memory arr) external pure returns (uint16) ;
     function tierFromResults(uint16 rightNumbersForTicket, bool powerNumberFound) external pure returns (RoundVictoryTier) ;
-    function evaluateWonResultsForOneTicket(uint256 roundId, uint256 ticketId) external view returns (TicketResults memory);
-    function evaluateWonResultsForTickets(uint256 roundId) external view returns (TicketResults[] memory);
-    function evaluateWonResultsForOneReferralTicket(uint256 roundId, uint256 referralTicketId) external view returns (ReferralTicketResults memory);
-    function evaluateWonResultsForReferral(uint256 roundId) external view returns (ReferralTicketResults[] memory);
+    function evaluateWonTicketsForRound(uint256 roundId) external view returns (TicketResults[] memory);
+    function evaluateWonTicketsAmountForWallet(uint256 roundId, address wallet, bool claimed) external view returns(uint256);
+    function evaluateWonTicketsForWallet(uint256 roundId, address wallet) external view returns(TicketResults[] memory);
+    function evaluateWonReferralForRound(uint256 roundId) external view returns (ReferralTicketResults[] memory);
+    function evaluateWonReferralAmountForWallet(uint256 roundId, address wallet, bool claimed) external view returns(uint256);
+    function evaluateWonReferralFoWallet(uint256 roundId, address wallet) external view returns (ReferralTicketResults[] memory);
     function amountWonInRound(uint256 roundId) external view returns (uint256) ;
     function roundNumbers(uint256 roundId) external view returns(uint16[] memory);
-    function referralWinnersNumber(uint256 roundId) external view returns(uint16[] memory);
+    function referralWinnersNumber(uint256 roundId) external view returns(uint256[] memory);
 }

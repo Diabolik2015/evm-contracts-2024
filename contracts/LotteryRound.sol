@@ -53,7 +53,7 @@ contract LotteryRound is Ownable, LotteryRoundInterface {
             endTime: block.timestamp + roundDurationInSeconds,
             ended : false,
             roundNumbers: new uint16[](0),
-            referralWinnersNumber: new uint16[](0),
+            referralWinnersNumber: new uint256[](0),
             referralWinnersNumberCount : 0,
             ticketIds : new uint256[](0),
             ticketsCount : 0,
@@ -187,10 +187,19 @@ contract LotteryRound is Ownable, LotteryRoundInterface {
         }
     }
 
-    function markVictoryClaimed(uint256 ticketId, uint256 amountClaimed) public onlyOwner {
-        Ticket storage ticket = tickets[ticketId];
-        ticket.claimed = true;
-        victoryTierAmountsClaimed[ticket.victoryTier] += amountClaimed;
+    function markVictoryClaimed(TicketResults[] memory ticketResults, ReferralTicketResults[] memory referralTicketResults) public onlyOwner {
+        for(uint i = 0; i < ticketResults.length; i++) {
+            TicketResults memory ticketResult = ticketResults[i];
+            Ticket storage ticket = tickets[ticketResult.ticketId];
+            ticket.claimed = true;
+            victoryTierAmountsClaimed[ticketResult.victoryTier] += ticketResult.amountWon;
+        }
+        for(uint i = 0; i < referralTicketResults.length; i++) {
+            ReferralTicketResults memory referralTicketResult = referralTicketResults[i];
+            ReferralTicket storage referralTicket = referralTickets[referralTicketResult.referralTicketId];
+            referralTicket.claimed = true;
+            victoryTierAmountsClaimed[RoundVictoryTier.Referrer] += referralTicketResult.amountWon;
+        }
     }
 
     function markReferralVictoryClaimed(uint256 referralTicketId, uint256 amountClaimed) public onlyOwner {

@@ -68,6 +68,7 @@ const deployCyclixRandomizer: DeployFunction = async (hre: HardhatRuntimeEnviron
     } else if (chainId == 43114) {
         console.log("Mainnet Chain, Should Subscribe to VRF")
     }
+    await new Promise(f => setTimeout(f, 2000));
 };
 
 export default deployCyclixRandomizer;

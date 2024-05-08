@@ -178,42 +178,19 @@ contract LotteryMaster is EmergencyFunctions {
     }
 
     function markWinners(uint256 roundId, uint256 _statusEndTime) public onlyOwner {
-        LotteryRoundInterface(rounds[roundId - 1]).markWinners(reader.evaluateWonResultsForTickets(roundId), reader.evaluateWonResultsForReferral(roundId));
+        LotteryRoundInterface(rounds[roundId - 1]).markWinners(reader.evaluateWonTicketsForRound(roundId), reader.evaluateWonReferralForRound(roundId));
         setLotteryStatus(LotteryStatuses.ClaimInProgress, _statusEndTime);
     }
 
-    function claimVictory(uint256 ticketId) public {
-        LotteryRoundInterface lotteryRound = LotteryRoundInterface(rounds[roundCount - 1]);
-        Ticket memory ticket = lotteryRound.ticketById(ticketId);
-        require(ticket.participantAddress == msg.sender, "Invalid ticket owner");
-        require(!ticket.claimed, "Ticket already claimed");
-        require(lotteryRound.getRound().ended, "Round not ended");
-        require(lotteryStatus == LotteryStatuses.ClaimInProgress, "Claim not started");
-        require(block.timestamp < statusEndTime, "Claim has ended");
-        require(ticket.victoryTier != RoundVictoryTier.NO_WIN, "No prize for this ticket");
-        require(ticket.victoryTier == reader.evaluateWonResultsForOneTicket(lotteryRound.getRound().id, ticketId).victoryTier, "Invalid ticket tier");
-        unchecked {
-            uint256 amountWon = lotteryRound.victoryTierAmounts(ticket.victoryTier) / lotteryRound.winnersForEachTier(ticket.victoryTier);
-            require(paymentToken.balanceOf(address(this)) >= amountWon, "Not enough funds on contract");
-            LotteryRoundInterface(rounds[roundCount - 1]).markVictoryClaimed(ticketId, amountWon);
-            paymentToken.transfer(msg.sender, amountWon);
-        }
-    }
-
-    function claimReferralVictory(uint256 referralTicketId) public {
-        LotteryRoundInterface lotteryRound = LotteryRoundInterface(rounds[roundCount - 1]);
-        ReferralTicket memory referralTicket = lotteryRound.referralTicketById(referralTicketId);
-        require(referralTicket.id == referralTicketId, "Invalid ticket id");
-        require(referralTicket.referralAddress == msg.sender, "Invalid ticket owner");
-        require(!referralTicket.claimed, "Ticket already claimed");
-        require(lotteryRound.getRound().ended, "Round not ended");
-        require(referralTicket.winner == true, "No prize for this ticket");
-        require(referralTicket.winner == reader.evaluateWonResultsForOneReferralTicket(lotteryRound.getRound().id, referralTicketId).won, "Invalid ticket tier");
-        unchecked {
-            uint256 amountWon = lotteryRound.victoryTierAmounts(RoundVictoryTier.Referrer) / reader.numberOfReferralWinnersForRoundId(lotteryRound.getRound().id);
-            require(paymentToken.balanceOf(address(this)) >= amountWon, "Not enough funds on contract");
-            LotteryRoundInterface(rounds[roundCount - 1]).markReferralVictoryClaimed(referralTicketId, amountWon);
-            paymentToken.transfer(msg.sender, amountWon);
-        }
+    function claimVictory() public {
+        uint256 amountForEntries = reader.evaluateWonTicketsAmountForWallet(roundCount, msg.sender, false);
+        uint256 amountForReferral = reader.evaluateWonReferralAmountForWallet(roundCount, msg.sender, false);
+        require(amountForEntries > 0 || amountForReferral > 0, "Nothing to claim for this wallet");
+        require(paymentToken.balanceOf(address(this)) >= amountForEntries + amountForReferral, "Not enough funds on contract");
+        LotteryRoundInterface(rounds[roundCount - 1]).markVictoryClaimed(
+            reader.evaluateWonTicketsForWallet(roundCount, msg.sender),
+            reader.evaluateWonReferralFoWallet(roundCount, msg.sender)
+        );
+        paymentToken.transfer(msg.sender, amountForEntries + amountForReferral);
     }
 }

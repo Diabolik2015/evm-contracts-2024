@@ -31,7 +31,7 @@ contract LotteryReader is LotteryReaderInterface, EmergencyFunctions {
         return round.roundNumbers;
     }
 
-    function referralWinnersNumber(uint256 roundId) public view returns(uint16[] memory) {
+    function referralWinnersNumber(uint256 roundId) public view returns(uint256[] memory) {
         Round memory round = LotteryRound(lotteryMaster.rounds(roundId -1)).getRound();
         return round.referralWinnersNumber;
     }
@@ -58,6 +58,15 @@ contract LotteryReader is LotteryReaderInterface, EmergencyFunctions {
             referralWinnersForRound = 1;
         }
         return referralWinnersForRound;
+    }
+
+    function existInArrayBigNumber(uint256 num, uint256[] memory arr) public pure override returns (bool) {
+        for (uint i = 0; i < arr.length; i++) {
+            if (arr[i] == num) {
+                return true;
+            }
+        }
+        return false;
     }
 
     function existInArrayNumber(uint16 num, uint16[] memory arr) public pure override returns (bool) {
@@ -103,27 +112,7 @@ contract LotteryReader is LotteryReaderInterface, EmergencyFunctions {
         return RoundVictoryTier.NO_WIN;
     }
 
-    function evaluateWonResultsForOneTicket(uint256 roundId, uint256 ticketId) public view override returns (TicketResults memory){
-        LotteryRound lotteryRound = LotteryRound(lotteryMaster.rounds(roundId - 1));
-        Round memory roundForEvaluation = lotteryRound.getRound();
-        Ticket memory ticket = lotteryRound.ticketById(roundForEvaluation.ticketIds[ticketId]);
-        uint16[] memory ticketNumbers = lotteryRound.numbersForTicketId(ticket.id);
-        bool powerNumberFound = ticketNumbers[5] == roundForEvaluation.roundNumbers[5];
-        uint16 rightNumbersForTicket = 0;
-        for(uint16 i = 0; i < 5; i++) {
-            uint16 ticketNumber = ticketNumbers[i];
-            if (existInArrayNumber(ticketNumber, roundForEvaluation.roundNumbers)) {
-                rightNumbersForTicket++;
-            }
-        }
-        return TicketResults({
-            ticketId: ticket.id,
-            participantAddress : ticket.participantAddress,
-            victoryTier: tierFromResults(rightNumbersForTicket, powerNumberFound)
-        });
-    }
-
-    function evaluateWonResultsForTickets(uint256 roundId) public view override returns (TicketResults[] memory){
+    function evaluateWonTicketsForRound(uint256 roundId) public view override returns (TicketResults[] memory){
         LotteryRound lotteryRound = LotteryRound(lotteryMaster.rounds(roundId - 1));
         Round memory roundForEvaluation = lotteryRound.getRound();
         uint16 roundTicketCount = roundForEvaluation.ticketsCount;
@@ -140,49 +129,111 @@ contract LotteryReader is LotteryReaderInterface, EmergencyFunctions {
                     rightNumbersForTicket++;
                 }
             }
+            RoundVictoryTier tierResult = tierFromResults(rightNumbersForTicket, powerNumberFound);
+            uint256 amountWon = 0;
+            if (tierResult != RoundVictoryTier.NO_WIN && lotteryRound.winnersForEachTier(tierResult) > 0) {
+                amountWon = poolForVictoryTier(roundId, tierResult) / lotteryRound.winnersForEachTier(tierResult);
+            }
             ticketResults[counter++] = TicketResults({
                 ticketId: ticket.id,
                 participantAddress : ticket.participantAddress,
-                victoryTier: tierFromResults(rightNumbersForTicket, powerNumberFound)
+                victoryTier: tierResult,
+                won: tierResult != RoundVictoryTier.NO_WIN,
+                claimed: ticket.claimed,
+                amountWon : amountWon
             });
         }
         return ticketResults;
     }
 
-    function evaluateWonResultsForOneReferralTicket(uint256 roundId, uint256 referralTicketId) public view override returns (ReferralTicketResults memory) {
+    function evaluateWonTicketsAmountForWallet(uint256 roundId, address wallet, bool claimed) public view override returns(uint256) {
+        uint256 wonAmount = 0;
         LotteryRound lotteryRound = LotteryRound(lotteryMaster.rounds(roundId - 1));
-        Round memory roundForEvaluation = lotteryRound.getRound();
-        ReferralTicket memory referralTicket = lotteryRound.referralTicketById(roundForEvaluation.referralTicketIds[referralTicketId]);
-        bool referralWon = existInArrayNumber(referralTicket.referralTicketNumber, roundForEvaluation.referralWinnersNumber);
-        return ReferralTicketResults({
-            referralTicketId: referralTicket.id,
-            referralAddress: referralTicket.referralAddress,
-            won: referralWon
-        });
+        TicketResults[] memory results = evaluateWonTicketsForWallet(roundId, wallet);
+        for (uint256 i = 0; i < results.length; i++) {
+            if (results[i].claimed == claimed) {
+                RoundVictoryTier tierForTicket = results[i].victoryTier;
+                wonAmount += results[i].amountWon;
+            }
+        }
+        return wonAmount;
     }
 
-    function evaluateWonResultsForReferral(uint256 roundId) public view override returns (ReferralTicketResults[] memory) {
+    function evaluateWonTicketsForWallet(uint256 roundId, address wallet) public view override returns(TicketResults[] memory) {
+        TicketResults[] memory results = evaluateWonTicketsForRound(roundId);
+        uint256 counterForWalletTicket = 0;
+        TicketResults[] memory resultsForWallet = new TicketResults[](results.length);
+        for (uint256 i = 0; i < results.length; i++) {
+            if (results[i].participantAddress == wallet && results[i].won) {
+                resultsForWallet[counterForWalletTicket] = results[i];
+                counterForWalletTicket++;
+            }
+        }
+        TicketResults[] memory onlyResultsForWallet = new TicketResults[](counterForWalletTicket);
+        for (uint256 i = 0; i < counterForWalletTicket; i++) {
+            onlyResultsForWallet[i] = resultsForWallet[i];
+        }
+        return onlyResultsForWallet;
+    }
+
+    function evaluateWonReferralForRound(uint256 roundId) public view override returns (ReferralTicketResults[] memory) {
         LotteryRound lotteryRound = LotteryRound(lotteryMaster.rounds(roundId - 1));
         Round memory roundForEvaluation = lotteryRound.getRound();
         ReferralTicketResults[] memory referralWinnerIds = new ReferralTicketResults[](roundForEvaluation.referralCounts);
         uint16 counter = 0;
         for(uint16 referralIndexForRound = 0; referralIndexForRound < roundForEvaluation.referralCounts; referralIndexForRound++) {
             ReferralTicket memory referralTicket = lotteryRound.referralTicketById(roundForEvaluation.referralTicketIds[referralIndexForRound]);
-            bool referralWon = existInArrayNumber(referralTicket.referralTicketNumber, roundForEvaluation.referralWinnersNumber);
+            bool referralWon = existInArrayBigNumber(referralTicket.referralTicketNumber, roundForEvaluation.referralWinnersNumber);
+            uint256 amountWon = 0;
+            if (referralWon && lotteryRound.winnersForEachTier(RoundVictoryTier.Referrer) > 0) {
+                amountWon = poolForReferral(roundId) / lotteryRound.winnersForEachTier(RoundVictoryTier.Referrer);
+            }
             referralWinnerIds[counter++] = ReferralTicketResults({
                 referralTicketId: referralTicket.id,
                 referralAddress : referralTicket.referralAddress,
-                won: referralWon
+                referralTicketNumber: referralTicket.referralTicketNumber,
+                won: referralWon,
+                claimed: referralTicket.claimed,
+                amountWon : amountWon
             });
         }
         return referralWinnerIds;
     }
 
+    function evaluateWonReferralAmountForWallet(uint256 roundId, address wallet, bool claimed) public view override returns(uint256) {
+        uint256 wonAmount = 0;
+        LotteryRound lotteryRound = LotteryRound(lotteryMaster.rounds(roundId - 1));
+        ReferralTicketResults[] memory results = evaluateWonReferralFoWallet(roundId, wallet);
+        for (uint256 i = 0; i < results.length; i++) {
+            if (results[i].claimed == claimed) {
+                wonAmount += results[i].amountWon;
+            }
+        }
+        return wonAmount;
+    }
+
+    function evaluateWonReferralFoWallet(uint256 roundId, address wallet) public view override returns(ReferralTicketResults[] memory) {
+        ReferralTicketResults[] memory results = evaluateWonReferralForRound(roundId);
+        uint256 counterForWalletTicket = 0;
+        ReferralTicketResults[] memory resultsForWallet = new ReferralTicketResults[](results.length);
+        for (uint256 i = 0; i < results.length; i++) {
+            if (results[i].referralAddress == wallet && results[i].won) {
+                resultsForWallet[counterForWalletTicket] = results[i];
+                counterForWalletTicket++;
+            }
+        }
+        ReferralTicketResults[] memory onlyResultsForWallet = new ReferralTicketResults[](counterForWalletTicket);
+        for (uint256 i = 0; i < counterForWalletTicket; i++) {
+            onlyResultsForWallet[i] = resultsForWallet[i];
+        }
+        return onlyResultsForWallet;
+    }
+
     function amountWonInRound(uint256 roundId) public view override returns (uint256) {
         LotteryRound lotteryRound = LotteryRound(lotteryMaster.rounds(roundId -1));
         uint256 amountWon = 0;
-        TicketResults[] memory ticketResults = evaluateWonResultsForTickets(roundId);
-        ReferralTicketResults[] memory referralResults = evaluateWonResultsForReferral(roundId);
+        TicketResults[] memory ticketResults = evaluateWonTicketsForRound(roundId);
+        ReferralTicketResults[] memory referralResults = evaluateWonReferralForRound(roundId);
         uint256 tier5_1Winners = 0;
         uint256 tier5Winners = 0;
         uint256 tier4_1Winners = 0;

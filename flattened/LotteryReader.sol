@@ -697,6 +697,7 @@ pragma solidity ^0.8.20;
     struct ReferralTicketResults {
         uint256 referralTicketId;
         address referralAddress;
+        uint256 referralTicketNumber;
         bool won;
     }
 
@@ -1441,8 +1442,8 @@ contract LotteryReader is LotteryReaderInterface, EmergencyFunctions {
     function amountWonInRound(uint256 roundId) public view override returns (uint256) {
         LotteryRound lotteryRound = LotteryRound(lotteryMaster.rounds(roundId -1));
         uint256 amountWon = 0;
-        TicketResults[] memory ticketResults = evaluateWonResultsForTickets(roundId);
-        ReferralTicketResults[] memory referralResults = evaluateWonResultsForReferral(roundId);
+        TicketResults[] memory ticketResults = evaluateWonTicketsForRound(roundId);
+        ReferralTicketResults[] memory referralResults = evaluateWonReferralForRound(roundId);
         uint256 tier5_1Winners = 0;
         uint256 tier5Winners = 0;
         uint256 tier4_1Winners = 0;

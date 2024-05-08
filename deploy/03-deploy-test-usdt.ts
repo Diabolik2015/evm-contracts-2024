@@ -24,6 +24,7 @@ const deployTestUsdt: DeployFunction = async (hre: HardhatRuntimeEnvironment) =>
     if (await usdtContract.balanceOf(bankDeployed.address) == BigInt(0)) {
         await usdtContract.transfer(bankDeployed.address, BigInt(10 ** 6 * 10 ** 18));
     }
+    await new Promise(f => setTimeout(f, 2000));
 };
 
 export default deployTestUsdt;

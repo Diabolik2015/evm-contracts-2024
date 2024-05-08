@@ -214,27 +214,10 @@ interface VRFCoordinatorV2Interface {
 }
 
 
-// File contracts/CyclixRandomizerInterface.sol
+// File @chainlink/contracts/src/v0.8/vrf/VRFConsumerBaseV2.sol@v1.0.0
 
 // Original license: SPDX_License_Identifier: MIT
-pragma solidity ^0.8.20;
-
-interface CyclixRandomizerInterface {
-    function requestRandomWords(uint32 numWords) external returns (uint256 requestId);
-    function getRequestStatus(uint256 _requestId) external view returns (bool fulfilled, uint256[] memory randomWords);
-    function registerGameContract(address gameAddress, string calldata name) external;
-    function getLastRequestIdForCaller(address _gameAddress) external view returns (uint256);
-    function recoverLostNumberRequest(uint256 _requestId) external returns (uint256);
-}
-
-
-// File contracts/CyclixRandomizer.sol
-
-// Original license: SPDX_License_Identifier: MIT
-// An example of a consumer contract that relies on a subscription for funding.
-pragma solidity ^0.8.20;
-
-
+pragma solidity ^0.8.4;
 
 /** ****************************************************************************
  * @notice Interface for contracts using VRF randomness
@@ -330,23 +313,19 @@ pragma solidity ^0.8.20;
  * @dev and so remains effective only in the case of unmodified oracle software).
  */
 abstract contract VRFConsumerBaseV2 {
-    error OnlyCoordinatorCanFulfill(address have, address want);
-    // solhint-disable-next-line chainlink-solidity/prefix-immutable-variables-with-i
-    address public vrfCoordinator;
+  error OnlyCoordinatorCanFulfill(address have, address want);
+  // solhint-disable-next-line chainlink-solidity/prefix-immutable-variables-with-i
+  address private immutable vrfCoordinator;
 
-    /**
-     * @param _vrfCoordinator address of VRFCoordinator contract
+  /**
+   * @param _vrfCoordinator address of VRFCoordinator contract
    */
-    constructor(address _vrfCoordinator) {
-        vrfCoordinator = _vrfCoordinator;
-    }
+  constructor(address _vrfCoordinator) {
+    vrfCoordinator = _vrfCoordinator;
+  }
 
-    function updateVrfCoordinator(address _vrfCoordinator) public {
-        vrfCoordinator = _vrfCoordinator;
-    }
-
-    /**
-     * @notice fulfillRandomness handles the VRF response. Your contract must
+  /**
+   * @notice fulfillRandomness handles the VRF response. Your contract must
    * @notice implement it. See "SECURITY CONSIDERATIONS" above for important
    * @notice principles to keep in mind when implementing your fulfillRandomness
    * @notice method.
@@ -359,20 +338,43 @@ abstract contract VRFConsumerBaseV2 {
    * @param requestId The Id initially returned by requestRandomness
    * @param randomWords the VRF output expanded to the requested number of words
    */
-    // solhint-disable-next-line chainlink-solidity/prefix-internal-functions-with-underscore
-    function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords) internal virtual;
+  // solhint-disable-next-line chainlink-solidity/prefix-internal-functions-with-underscore
+  function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords) internal virtual;
 
-    // rawFulfillRandomness is called by VRFCoordinator when it receives a valid VRF
-    // proof. rawFulfillRandomness then calls fulfillRandomness, after validating
-    // the origin of the call
-    function rawFulfillRandomWords(uint256 requestId, uint256[] memory randomWords) external {
-        if (msg.sender != vrfCoordinator) {
-            revert OnlyCoordinatorCanFulfill(msg.sender, vrfCoordinator);
-        }
-        fulfillRandomWords(requestId, randomWords);
+  // rawFulfillRandomness is called by VRFCoordinator when it receives a valid VRF
+  // proof. rawFulfillRandomness then calls fulfillRandomness, after validating
+  // the origin of the call
+  function rawFulfillRandomWords(uint256 requestId, uint256[] memory randomWords) external {
+    if (msg.sender != vrfCoordinator) {
+      revert OnlyCoordinatorCanFulfill(msg.sender, vrfCoordinator);
     }
+    fulfillRandomWords(requestId, randomWords);
+  }
 }
+
+
+// File contracts/CyclixRandomizerInterface.sol
+
+// Original license: SPDX_License_Identifier: MIT
+pragma solidity ^0.8.20;
+
+interface CyclixRandomizerInterface {
+    function requestRandomWords(uint32 numWords) external returns (uint256 requestId);
+    function getRequestStatus(uint256 _requestId) external view returns (bool fulfilled, uint256[] memory randomWords);
+    function registerGameContract(address gameAddress, string calldata name) external;
+    function getLastRequestIdForCaller(address _gameAddress) external view returns (uint256);
+    function recoverLostNumberRequest(uint256 _requestId) external returns (uint256);
+}
+
+
 // File contracts/CyclixRandomizer.sol
+
+// Original license: SPDX_License_Identifier: MIT
+// An example of a consumer contract that relies on a subscription for funding.
+pragma solidity ^0.8.20;
+
+
+
 
 contract CyclixRandomizer is CyclixRandomizerInterface, VRFConsumerBaseV2, ConfirmedOwner {
     event RequestSent(uint256 requestId, uint32 numWords, address requestor);
@@ -390,10 +392,6 @@ contract CyclixRandomizer is CyclixRandomizerInterface, VRFConsumerBaseV2, Confi
     mapping(address => string) public gameContractName;
     mapping(address => uint256) public gameContractRequestsCount;
     mapping(address => uint256[]) public gameContractRequests;
-
-    function updateCoordinator(address _vrfCoordinator) public onlyOwner {
-        updateVrfCoordinator(_vrfCoordinator);
-    }
 
     // Your subscription ID.
     uint64 public s_subscriptionId;
@@ -417,11 +415,13 @@ contract CyclixRandomizer is CyclixRandomizerInterface, VRFConsumerBaseV2, Confi
     }
     uint16 public requestConfirmations = 3;
     mapping(uint256 => uint256) public randomWordsRecoverRequest;
+    address coordinatorAddress;
 
-    constructor(uint64 subscriptionId, bytes32 _keyHash, address coordinatorAddress)
-    VRFConsumerBaseV2(coordinatorAddress)
+    constructor(uint64 subscriptionId, bytes32 _keyHash, address _coordinatorAddress)
+    VRFConsumerBaseV2(_coordinatorAddress)
     ConfirmedOwner(msg.sender)
     {
+        coordinatorAddress = _coordinatorAddress;
         s_subscriptionId = subscriptionId;
         keyHash = _keyHash;
     }
@@ -444,7 +444,7 @@ contract CyclixRandomizer is CyclixRandomizerInterface, VRFConsumerBaseV2, Confi
         require(msg.sender == owner() || gameContractAdded[msg.sender], "Only Owner and Game can request random number");
         uint32 callbackGasLimit = callbackGasLimitForOneWord;
 
-        requestId = VRFCoordinatorV2Interface(vrfCoordinator).requestRandomWords(keyHash, s_subscriptionId,
+        requestId = VRFCoordinatorV2Interface(coordinatorAddress).requestRandomWords(keyHash, s_subscriptionId,
             requestConfirmations, callbackGasLimit * numWords, numWords);
 
         s_requests[requestId] = RequestStatus({

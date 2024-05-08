@@ -11,6 +11,7 @@ const deployLotteryReader: DeployFunction = async (hre: HardhatRuntimeEnvironmen
         args: [],
         nonce: "pending",
     });
+    await new Promise(f => setTimeout(f, 2000));
 };
 
 export default deployLotteryReader;
