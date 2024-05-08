@@ -114,7 +114,7 @@ describe("Lottery Master", function () {
       }
 
       const tier = tierIndexToName(tierIndexForResult(rightNumbersForTicket, powerNumberFound))
-      ticketResults.push([ticket.id, tier])
+      ticketResults.push([ticket.id, ticket.participantAddress, tier])
     }
     return ticketResults
   }
@@ -128,7 +128,7 @@ describe("Lottery Master", function () {
       const referralTicket = await lotteryRound.referralTickets(round.referralTicketIds[i])
       const referralTicketWon = checkNumberExistInArray(referralWinnersNumber.map(b => Number(b)),
           Number(referralTicket.referralTicketNumber))
-      referralResults.push([referralTicket.id, referralTicketWon])
+      referralResults.push([referralTicket.id, referralTicket.referralAddress, referralTicketWon])
     }
     return referralResults
   }
@@ -310,7 +310,7 @@ describe("Lottery Master", function () {
 
       const ticketResultsOffChain = await computeTicketResultsOffChain(lotteryRound)
       const ticketResultsFromChain = (await lotteryReader.evaluateWonResultsForTickets(roundId))
-          .map(([id, tier]) => [id, tierIndexToName(Number(tier))])
+          .map(([id, address, tier]) => [id, address, tierIndexToName(Number(tier))])
 
       expect(ticketResultsFromChain).to.deep.equal(ticketResultsOffChain)
 
@@ -323,7 +323,7 @@ describe("Lottery Master", function () {
       const ticketResults = []
       for (let i = 0; i < round.ticketsCount; i++) {
         const ticket = await lotteryRound.tickets(round.ticketIds[i])
-        ticketResults.push([ticket.id, tierIndexToName(Number(ticket.victoryTier))])
+        ticketResults.push([ticket.id, ticket.participantAddress, tierIndexToName(Number(ticket.victoryTier))])
       }
       expect(ticketResults).to.deep.equal(ticketResultsOffChain)
 
@@ -347,7 +347,14 @@ describe("Lottery Master", function () {
       await expect(lotteryMaster.connect(player2).claimVictory(0)).to.be.revertedWith("Invalid ticket owner")
       await expect(lotteryMaster.connect(player1).claimVictory(0)).to.be.revertedWith("Not enough funds on contract")
 
-      expect(await lotteryReader.amountWonInRound(roundId)).to.be.equal(toEtherBigInt(85))
+      expect(await lotteryReader.amountWonInRound(roundId)).to.be.equal(
+          (await lotteryRound.victoryTierAmounts(1)) +
+          (await lotteryRound.victoryTierAmounts(2)) +
+          (await lotteryRound.victoryTierAmounts(3)) +
+          (await lotteryRound.victoryTierAmounts(4)) +
+          (await lotteryRound.victoryTierAmounts(5)) +
+          (await lotteryRound.victoryTierAmounts(6)) +
+          (await lotteryRound.victoryTierAmounts(7)))
       await usdtContract.connect(owner).transfer(await lotteryMaster.getAddress(), await lotteryReader.amountWonInRound(round.id))
 
       await lotteryMaster.connect(player1).claimVictory(0)
@@ -420,6 +427,9 @@ describe("Lottery Master", function () {
       expect(await lotteryRound2.winnersForEachTier(5)).to.equal(0)
       expect(await lotteryRound2.winnersForEachTier(6)).to.equal(0)
       expect(await lotteryRound2.winnersForEachTier(7)).to.equal(1)
+
+      expect(await lotteryReader.amountWonInRound(roundId2)).to.equal(await lotteryRound2.victoryTierAmounts(7))
+      await usdtContract.connect(owner).transfer(await lotteryMaster.getAddress(), await lotteryReader.amountWonInRound(roundId2))
 
       // Attempt to claim the prize for the previous round
       await expect(lotteryMaster.connect(player3).claimVictory(5)).to.be.reverted

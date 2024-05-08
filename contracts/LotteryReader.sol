@@ -118,6 +118,7 @@ contract LotteryReader is LotteryReaderInterface, EmergencyFunctions {
         }
         return TicketResults({
             ticketId: ticket.id,
+            participantAddress : ticket.participantAddress,
             victoryTier: tierFromResults(rightNumbersForTicket, powerNumberFound)
         });
     }
@@ -131,8 +132,8 @@ contract LotteryReader is LotteryReaderInterface, EmergencyFunctions {
         for(uint16 ticketIndexForRound = 0; ticketIndexForRound < roundTicketCount; ticketIndexForRound++) {
             Ticket memory ticket = lotteryRound.ticketById(roundForEvaluation.ticketIds[ticketIndexForRound]);
             uint16[] memory ticketNumbers = lotteryRound.numbersForTicketId(ticket.id);
-        bool powerNumberFound = ticketNumbers[5] == roundForEvaluation.roundNumbers[5];
-        uint16 rightNumbersForTicket = 0;
+            bool powerNumberFound = ticketNumbers[5] == roundForEvaluation.roundNumbers[5];
+            uint16 rightNumbersForTicket = 0;
             for(uint16 i = 0; i < 5; i++) {
                 uint16 ticketNumber = ticketNumbers[i];
                 if (existInArrayNumber(ticketNumber, roundForEvaluation.roundNumbers)) {
@@ -141,6 +142,7 @@ contract LotteryReader is LotteryReaderInterface, EmergencyFunctions {
             }
             ticketResults[counter++] = TicketResults({
                 ticketId: ticket.id,
+                participantAddress : ticket.participantAddress,
                 victoryTier: tierFromResults(rightNumbersForTicket, powerNumberFound)
             });
         }
@@ -154,6 +156,7 @@ contract LotteryReader is LotteryReaderInterface, EmergencyFunctions {
         bool referralWon = existInArrayNumber(referralTicket.referralTicketNumber, roundForEvaluation.referralWinnersNumber);
         return ReferralTicketResults({
             referralTicketId: referralTicket.id,
+            referralAddress: referralTicket.referralAddress,
             won: referralWon
         });
     }
@@ -168,6 +171,7 @@ contract LotteryReader is LotteryReaderInterface, EmergencyFunctions {
             bool referralWon = existInArrayNumber(referralTicket.referralTicketNumber, roundForEvaluation.referralWinnersNumber);
             referralWinnerIds[counter++] = ReferralTicketResults({
                 referralTicketId: referralTicket.id,
+                referralAddress : referralTicket.referralAddress,
                 won: referralWon
             });
         }
@@ -176,8 +180,29 @@ contract LotteryReader is LotteryReaderInterface, EmergencyFunctions {
 
     function amountWonInRound(uint256 roundId) public view override returns (uint256) {
         LotteryRound lotteryRound = LotteryRound(lotteryMaster.rounds(roundId -1));
-        return lotteryRound.victoryTierAmounts(RoundVictoryTier.Tier5_1) + lotteryRound.victoryTierAmounts(RoundVictoryTier.Tier5) + lotteryRound.victoryTierAmounts(RoundVictoryTier.Tier4_1) +
-        lotteryRound.victoryTierAmounts(RoundVictoryTier.Tier4) + lotteryRound.victoryTierAmounts(RoundVictoryTier.Tier3_1) + lotteryRound.victoryTierAmounts(RoundVictoryTier.Tier3) +
-            lotteryRound.victoryTierAmounts(RoundVictoryTier.Referrer);
+        uint256 amountWon = 0;
+
+        if (lotteryRound.winnersForEachTier(RoundVictoryTier.Tier5_1) > 0) {
+            amountWon += lotteryRound.victoryTierAmounts(RoundVictoryTier.Tier5_1);
+        }
+        if (lotteryRound.winnersForEachTier(RoundVictoryTier.Tier5) > 0) {
+            amountWon += lotteryRound.victoryTierAmounts(RoundVictoryTier.Tier5);
+        }
+        if (lotteryRound.winnersForEachTier(RoundVictoryTier.Tier4_1) > 0) {
+            amountWon += lotteryRound.victoryTierAmounts(RoundVictoryTier.Tier4_1);
+        }
+        if (lotteryRound.winnersForEachTier(RoundVictoryTier.Tier4) > 0) {
+            amountWon += lotteryRound.victoryTierAmounts(RoundVictoryTier.Tier4);
+        }
+        if (lotteryRound.winnersForEachTier(RoundVictoryTier.Tier3_1) > 0) {
+            amountWon += lotteryRound.victoryTierAmounts(RoundVictoryTier.Tier3_1);
+        }
+        if (lotteryRound.winnersForEachTier(RoundVictoryTier.Tier3) > 0) {
+            amountWon += lotteryRound.victoryTierAmounts(RoundVictoryTier.Tier3);
+        }
+        if (lotteryRound.winnersForEachTier(RoundVictoryTier.Referrer) > 0) {
+            amountWon += lotteryRound.victoryTierAmounts(RoundVictoryTier.Referrer);
+        }
+        return amountWon;
     }
 }

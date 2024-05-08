@@ -40,6 +40,7 @@ pragma solidity ^0.8.20;
 
     struct TicketResults {
         uint256 ticketId;
+        address participantAddress;
         RoundVictoryTier victoryTier;
     }
 
@@ -53,5 +54,6 @@ pragma solidity ^0.8.20;
 
     struct ReferralTicketResults {
         uint256 referralTicketId;
+        address referralAddress;
         bool won;
     }
