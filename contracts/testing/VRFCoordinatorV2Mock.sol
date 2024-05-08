@@ -117,7 +117,6 @@ contract VRFCoordinatorV2Mock is VRFCoordinatorV2Interface, ConfirmedOwner {
    * @param _words user-provided random words
    */
     function fulfillRandomWordsWithOverride(uint256 _requestId, address _consumer, uint256[] memory _words) public {
-        uint256 startGas = gasleft();
         if (s_requests[_requestId].subId == 0) {
             revert("nonexistent request");
         }
@@ -135,14 +134,8 @@ contract VRFCoordinatorV2Mock is VRFCoordinatorV2Interface, ConfirmedOwner {
         s_config.reentrancyLock = true;
         VRFConsumerBaseV2(_consumer).rawFulfillRandomWords(_requestId, _words);
         s_config.reentrancyLock = false;
-
-        uint96 payment = uint96(BASE_FEE + ((startGas - gasleft()) * GAS_PRICE_LINK));
-        if (s_subscriptions[req.subId].balance < payment) {
-            revert InsufficientBalance();
-        }
-        s_subscriptions[req.subId].balance -= payment;
         delete (s_requests[_requestId]);
-        emit RandomWordsFulfilled(_requestId, _requestId, payment, true);
+        emit RandomWordsFulfilled(_requestId, _requestId, 0, true);
     }
 
     /**

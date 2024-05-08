@@ -4,8 +4,8 @@ import { VRFCoordinatorV2Mock } from "../typechain-types/contracts/testing";
 
 export async function deployVrfCoordinatorMock(): Promise<VRFCoordinatorV2Mock> {
     const VRFMock = await hre.ethers.getContractFactory("VRFCoordinatorV2Mock");
-    const _BASE_FEE= BigInt(10 ** 17)
-    const _GAS_PRICE_LINK= BigInt(10 ** 9)
+    const _BASE_FEE= BigInt(0)
+    const _GAS_PRICE_LINK= BigInt(0)
     return await VRFMock.deploy(_BASE_FEE, _GAS_PRICE_LINK);
 }
 

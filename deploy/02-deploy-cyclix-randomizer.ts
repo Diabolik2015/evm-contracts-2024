@@ -22,13 +22,12 @@ const deployCyclixRandomizer: DeployFunction = async (hre: HardhatRuntimeEnviron
         const VRFMockDeployed = await deploy("VRFCoordinatorV2Mock", {
             from: deployer,
             log: true,
-            args: [BigInt(10 ** 17), BigInt(10 ** 9)],
+            args: [0, 0],
             nonce: "pending",
         });
 
         const vrfMock = await hre.ethers.getContractAt("VRFCoordinatorV2Mock", VRFMockDeployed.address)
         await vrfMock.createSubscription();
-        await vrfMock.fundSubscription(await vrfMock.getLatestSubscriptionIdCreated(), BigInt(5 * 10 ** 16));
 
         contractDeployed = await deploy("CyclixRandomizer", {
             from: deployer,

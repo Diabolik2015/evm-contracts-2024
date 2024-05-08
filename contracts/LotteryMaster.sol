@@ -73,8 +73,10 @@ contract LotteryMaster is EmergencyFunctions {
 
     function updateSetup(address cyclixRandomizer, address lotteryReader, address _lotteryRoundCreator, address _paymentToken, uint256 _ticketPrice,
         address _treasuryWallet, uint16 _percentageOfReferralWinners, uint16[] memory _poolPercentagesBasePoints, bool _freeRoundsAreEnabled) public onlyOwner {
-        randomizer = CyclixRandomizerInterface(cyclixRandomizer);
-        randomizer.registerGameContract(address(this), "LotteryMasterV0.1");
+        if (address(randomizer) != cyclixRandomizer) {
+            randomizer = CyclixRandomizerInterface(cyclixRandomizer);
+            randomizer.registerGameContract(address(this), "LotteryMasterV0.1");
+        }
         reader = LotteryReaderInterface(lotteryReader);
         lotteryRoundCreator = LotteryRoundCreatorInterface(_lotteryRoundCreator);
         paymentToken = IERC20Metadata(_paymentToken);

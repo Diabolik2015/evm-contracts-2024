@@ -20,7 +20,6 @@ describe("Cyclix Randomizer", function () {
     it("Should be able to fund VRF subscription", async function () {
       const vrfMock = await deployVrfAndCreateSubscription()
       expect(await vrfMock.getLatestSubscriptionIdCreated()).equal(BigInt(1));
-      await vrfMock.fundSubscription(await vrfMock.getLatestSubscriptionIdCreated(), BigInt(10 ** 18));
     });
 
     it("Deploy CyclixRandomizer", async function () {

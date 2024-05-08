@@ -181,26 +181,49 @@ contract LotteryReader is LotteryReaderInterface, EmergencyFunctions {
     function amountWonInRound(uint256 roundId) public view override returns (uint256) {
         LotteryRound lotteryRound = LotteryRound(lotteryMaster.rounds(roundId -1));
         uint256 amountWon = 0;
+        TicketResults[] memory ticketResults = evaluateWonResultsForTickets(roundId);
+        ReferralTicketResults[] memory referralResults = evaluateWonResultsForReferral(roundId);
+        uint256 tier5_1Winners = 0;
+        uint256 tier5Winners = 0;
+        uint256 tier4_1Winners = 0;
+        uint256 tier4Winners = 0;
+        uint256 tier3_1Winners = 0;
+        uint256 tier3Winners = 0;
+        for(uint16 i = 0; i < ticketResults.length; i++) {
+            if (ticketResults[i].victoryTier == RoundVictoryTier.Tier5_1) {
+                tier5_1Winners++;
+            } else if (ticketResults[i].victoryTier == RoundVictoryTier.Tier5) {
+                tier5Winners++;
+            } else if (ticketResults[i].victoryTier == RoundVictoryTier.Tier4_1) {
+                tier4_1Winners++;
+            } else if (ticketResults[i].victoryTier == RoundVictoryTier.Tier4) {
+                tier4Winners++;
+            } else if (ticketResults[i].victoryTier == RoundVictoryTier.Tier3_1) {
+                tier3_1Winners++;
+            } else if (ticketResults[i].victoryTier == RoundVictoryTier.Tier3) {
+                tier3Winners++;
+            }
+        }
 
-        if (lotteryRound.winnersForEachTier(RoundVictoryTier.Tier5_1) > 0) {
+        if (tier5_1Winners > 0) {
             amountWon += lotteryRound.victoryTierAmounts(RoundVictoryTier.Tier5_1);
         }
-        if (lotteryRound.winnersForEachTier(RoundVictoryTier.Tier5) > 0) {
+        if (tier5Winners > 0) {
             amountWon += lotteryRound.victoryTierAmounts(RoundVictoryTier.Tier5);
         }
-        if (lotteryRound.winnersForEachTier(RoundVictoryTier.Tier4_1) > 0) {
+        if (tier4_1Winners > 0) {
             amountWon += lotteryRound.victoryTierAmounts(RoundVictoryTier.Tier4_1);
         }
-        if (lotteryRound.winnersForEachTier(RoundVictoryTier.Tier4) > 0) {
+        if (tier4Winners > 0) {
             amountWon += lotteryRound.victoryTierAmounts(RoundVictoryTier.Tier4);
         }
-        if (lotteryRound.winnersForEachTier(RoundVictoryTier.Tier3_1) > 0) {
+        if (tier3_1Winners > 0) {
             amountWon += lotteryRound.victoryTierAmounts(RoundVictoryTier.Tier3_1);
         }
-        if (lotteryRound.winnersForEachTier(RoundVictoryTier.Tier3) > 0) {
+        if (tier3Winners > 0) {
             amountWon += lotteryRound.victoryTierAmounts(RoundVictoryTier.Tier3);
         }
-        if (lotteryRound.winnersForEachTier(RoundVictoryTier.Referrer) > 0) {
+        if (referralResults.length > 0) {
             amountWon += lotteryRound.victoryTierAmounts(RoundVictoryTier.Referrer);
         }
         return amountWon;
