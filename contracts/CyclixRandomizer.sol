@@ -46,7 +46,7 @@ contract CyclixRandomizer is CyclixRandomizerInterface, VRFConsumerBaseV2, Confi
     }
     uint16 public requestConfirmations = 3;
     mapping(uint256 => uint256) public randomWordsRecoverRequest;
-    address coordinatorAddress;
+    address public coordinatorAddress;
 
     constructor(uint64 subscriptionId, bytes32 _keyHash, address _coordinatorAddress)
     VRFConsumerBaseV2(_coordinatorAddress)

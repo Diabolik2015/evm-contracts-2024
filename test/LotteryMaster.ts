@@ -55,9 +55,13 @@ describe("Lottery Master", function () {
     return { lotteryMaster, lotteryReader,  cyclixRandomizer, vrfMock };
   }
 
-  async function deployLotteryMasterAndStartRound() {
+  async function deployLotteryMasterAndStartRound(timeOfRound ?: number) {
     const deployed = await deployLotteryMaster();
-    await deployed.lotteryMaster.startNewRound(50);
+    if (timeOfRound) {
+      await deployed.lotteryMaster.startNewRound(timeOfRound);
+    } else {
+      await deployed.lotteryMaster.startNewRound(50);
+    }
     const lotteryRoundAddress = await deployed.lotteryMaster.rounds(Number((await deployed.lotteryMaster.roundCount())) - 1)
     const contract = await hre.ethers.getContractFactory("LotteryRound");
     // @ts-ignore
@@ -459,6 +463,46 @@ describe("Lottery Master", function () {
       await usdtContract.transfer(await usdtBankContract.getAddress(), toEtherBigInt(1000))
       expect(await usdtContract.balanceOf(await usdtBankContract.getAddress())).to.equal(toEtherBigInt(1000))
       expect(await usdtBankContract.getOneHundredDollars()).to.not.be.reverted
+    })
+
+    it("Check Readers functions for ui works", async function() {
+      const { lotteryMaster, lotteryRound,
+        lotteryReader, cyclixRandomizer, vrfMock } = await deployLotteryMasterAndStartRound(10000);
+      await addPlayersToLotteryRound(lotteryMaster);
+      await addPlayersToLotteryRound(lotteryMaster);
+      await addPlayersToLotteryRound(lotteryMaster);
+      await addPlayersToLotteryRound(lotteryMaster);
+      await addPlayersToLotteryRound(lotteryMaster);
+      await addPlayersToLotteryRound(lotteryMaster);
+      await addPlayersToLotteryRound(lotteryMaster);
+      await addPlayersToLotteryRound(lotteryMaster);
+      await addPlayersToLotteryRound(lotteryMaster);
+      await addPlayersToLotteryRound(lotteryMaster);
+      await addPlayersToLotteryRound(lotteryMaster);
+      await addPlayersToLotteryRound(lotteryMaster);
+      await addPlayersToLotteryRound(lotteryMaster);
+      const round = await lotteryRound.getRound()
+      const lotteryRoundTickets = []
+      const lotteryRoundTicketNumbers = []
+      for (let i = 0; i < round.ticketsCount; i++) {
+        lotteryRoundTickets.push(await lotteryRound.tickets(i))
+        for (let j = 0; j < 6; j++) {
+          lotteryRoundTicketNumbers.push(await lotteryRound.ticketNumbers(lotteryRoundTickets[i].id, j))
+        }
+
+      }
+
+      const tickets = await lotteryReader.getTicketsForRound(1)
+      const ticketsNumbers = await lotteryReader.getAllTicketsNumbersForRound(1)
+      expect(tickets.length).to.equal(130)
+      expect(tickets.length).to.equal(lotteryRoundTickets.length)
+      for(let i = 0; i < tickets.length; i++) {
+        let ticket = tickets[i];
+        let lotteryRoundTicket = lotteryRoundTickets[i];
+        expect(ticket).to.deep.equal(lotteryRoundTicket)
+      }
+      expect(ticketsNumbers.length).to.equal(lotteryRoundTicketNumbers.length)
+      expect(ticketsNumbers).to.deep.equal(lotteryRoundTicketNumbers)
     })
   })
 });

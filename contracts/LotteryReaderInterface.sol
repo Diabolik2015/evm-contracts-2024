@@ -19,6 +19,9 @@ interface LotteryReaderInterface {
     function notExistInArrayNumber(uint16 num, uint16[] memory arr) external pure returns (bool) ;
     function getRandomUniqueNumberInArrayForMaxValue(uint256 randomNumber, uint16 maxValue, uint16[] memory arr) external pure returns (uint16) ;
     function tierFromResults(uint16 rightNumbersForTicket, bool powerNumberFound) external pure returns (RoundVictoryTier) ;
+    function getTicketsForRound(uint256 roundId) external view returns(Ticket[] memory);
+    function getAllTicketsNumbersForRound(uint256 roundId) external view returns(uint16[] memory);
+    function getReferralTicketsForRound(uint256 roundId) external view returns(ReferralTicket[] memory);
     function evaluateWonTicketsForRound(uint256 roundId) external view returns (TicketResults[] memory);
     function evaluateWonTicketsAmountForWallet(uint256 roundId, address wallet, bool claimed) external view returns(uint256);
     function evaluateWonTicketsForWallet(uint256 roundId, address wallet) external view returns(TicketResults[] memory);

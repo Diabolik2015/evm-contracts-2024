@@ -18,7 +18,7 @@ const deployCyclixRandomizer: DeployFunction = async (hre: HardhatRuntimeEnviron
     }
     let contractDeployed
 
-    if (testing && chainId != 31337) {
+    if (testing && chainId != 43113) {
         const VRFMockDeployed = await deploy("VRFCoordinatorV2Mock", {
             from: deployer,
             log: true,
