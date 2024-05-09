@@ -183,6 +183,8 @@ contract LotteryMaster is EmergencyFunctions {
     }
 
     function claimVictory() public {
+        require(lotteryStatus == LotteryStatuses.ClaimInProgress, "Lottery is not in claim period");
+        require(statusEndTime > block.timestamp, "Claim Period ended");
         uint256 amountForEntries = reader.evaluateWonTicketsAmountForWallet(roundCount, msg.sender, false);
         uint256 amountForReferral = reader.evaluateWonReferralAmountForWallet(roundCount, msg.sender, false);
         require(amountForEntries > 0 || amountForReferral > 0, "Nothing to claim for this wallet");
