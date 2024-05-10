@@ -31,6 +31,7 @@ const deployLotteryMaster: DeployFunction = async (hre: HardhatRuntimeEnvironmen
 
     const [owner] = await hre.ethers.getSigners();
     if ((await lotteryRoundCreatorContract.owner()) != lotteryMaster.address) {
+        await new Promise(f => setTimeout(f, 2000));
         console.log("Attempting to transfer ownership of Lottery Round Creator to Lottery Master:", lotteryRoundCreator.address, lotteryMaster.address, await lotteryRoundCreatorContract.owner());
         await lotteryRoundCreatorContract.connect(owner).transferOwnership(lotteryMaster.address);
         console.log("Lottery Round Creator rightly transferred to Lottery Master:", lotteryRoundCreator.address, lotteryMaster.address, await lotteryRoundCreatorContract.owner());

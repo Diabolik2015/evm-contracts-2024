@@ -11,9 +11,9 @@ const deployCyclixRandomizer: DeployFunction = async (hre: HardhatRuntimeEnviron
     const testing = true
     // @ts-ignore
     let args = []
-    if (chainId == 31337) {
+    if (chainId == 1337) {
         args = [0, "0x354d2f95da55398f44b7cff77da56283d9c6c829a4bdf1bbcaf2ad6a4d081f61", hre.ethers.ZeroAddress];
-        let contractDeployed = await deploy("CyclixRandomizer", {
+        await deploy("CyclixRandomizer", {
             from: deployer,
             log: true,
             // @ts-ignore
@@ -33,7 +33,11 @@ const deployCyclixRandomizer: DeployFunction = async (hre: HardhatRuntimeEnviron
             });
 
             const vrfMock = await hre.ethers.getContractAt("VRFCoordinatorV2Mock", VRFMockDeployed.address)
-            await vrfMock.createSubscription();
+            if (Number(await vrfMock.getLatestSubscriptionIdCreated()) == 0) {
+                console.log("Creating New Subscription to VRF Mock")
+                await vrfMock.createSubscription();
+            }
+
 
             let contractDeployed = await deploy("CyclixRandomizer", {
                 from: deployer,
@@ -47,7 +51,10 @@ const deployCyclixRandomizer: DeployFunction = async (hre: HardhatRuntimeEnviron
                 nonce: "pending",
             });
 
-            await vrfMock.addConsumer(await vrfMock.getLatestSubscriptionIdCreated(), contractDeployed.address);
+            if (!(await vrfMock.consumerIsAdded(await vrfMock.getLatestSubscriptionIdCreated(), contractDeployed.address))) {
+                console.log("Adding Consumer to VRF Mock")
+                await vrfMock.addConsumer(await vrfMock.getLatestSubscriptionIdCreated(), contractDeployed.address);
+            }
         } else {
             args = [2366, "0x354d2f95da55398f44b7cff77da56283d9c6c829a4bdf1bbcaf2ad6a4d081f61", "0x2eD832Ba664535e5886b75D64C46EB9a228C2610"];
             let contractDeployed = await deploy("CyclixRandomizer", {
