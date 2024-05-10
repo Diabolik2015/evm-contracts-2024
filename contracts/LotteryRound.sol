@@ -97,7 +97,8 @@ contract LotteryRound is Ownable, LotteryRoundInterface {
     }
 
     function updateVictoryPoolForTicket(uint256 paymentTokenAmount) public onlyOwner {
-        totalVictoryPool += paymentTokenAmount;
+        totalVictoryPool += paymentTokenAmount - percentageInBasisPoint(paymentTokenAmount, poolPercentagesBasePoints[uint(RoundVictoryTier.TokenHolders)]) -
+                        percentageInBasisPoint(paymentTokenAmount, poolPercentagesBasePoints[uint(RoundVictoryTier.Treasury)]);
         for(uint i = 0; i < 9; i++) {
             victoryTierAmounts[RoundVictoryTier(i)] += percentageInBasisPoint(paymentTokenAmount, poolPercentagesBasePoints[i]);
         }
