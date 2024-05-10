@@ -264,45 +264,16 @@ contract LotteryReader is LotteryReaderInterface, EmergencyFunctions {
         uint256 amountWon = 0;
         TicketResults[] memory ticketResults = evaluateWonTicketsForRound(roundId);
         ReferralTicketResults[] memory referralResults = evaluateWonReferralForRound(roundId);
-        uint256 tier5_1Winners = 0;
-        uint256 tier5Winners = 0;
-        uint256 tier4_1Winners = 0;
-        uint256 tier4Winners = 0;
-        uint256 tier3_1Winners = 0;
-        uint256 tier3Winners = 0;
+        uint256[] memory winnersForPools = new uint256[](6);
         for(uint16 i = 0; i < ticketResults.length; i++) {
-            if (ticketResults[i].victoryTier == RoundVictoryTier.Tier5_1) {
-                tier5_1Winners++;
-            } else if (ticketResults[i].victoryTier == RoundVictoryTier.Tier5) {
-                tier5Winners++;
-            } else if (ticketResults[i].victoryTier == RoundVictoryTier.Tier4_1) {
-                tier4_1Winners++;
-            } else if (ticketResults[i].victoryTier == RoundVictoryTier.Tier4) {
-                tier4Winners++;
-            } else if (ticketResults[i].victoryTier == RoundVictoryTier.Tier3_1) {
-                tier3_1Winners++;
-            } else if (ticketResults[i].victoryTier == RoundVictoryTier.Tier3) {
-                tier3Winners++;
+            if (ticketResults[i].victoryTier != RoundVictoryTier.NO_WIN) {
+                winnersForPools[uint(ticketResults[i].victoryTier)] = winnersForPools[uint(ticketResults[i].victoryTier)] + 1;
             }
         }
-
-        if (tier5_1Winners > 0) {
-            amountWon += lotteryRound.victoryTierAmounts(RoundVictoryTier.Tier5_1);
-        }
-        if (tier5Winners > 0) {
-            amountWon += lotteryRound.victoryTierAmounts(RoundVictoryTier.Tier5);
-        }
-        if (tier4_1Winners > 0) {
-            amountWon += lotteryRound.victoryTierAmounts(RoundVictoryTier.Tier4_1);
-        }
-        if (tier4Winners > 0) {
-            amountWon += lotteryRound.victoryTierAmounts(RoundVictoryTier.Tier4);
-        }
-        if (tier3_1Winners > 0) {
-            amountWon += lotteryRound.victoryTierAmounts(RoundVictoryTier.Tier3_1);
-        }
-        if (tier3Winners > 0) {
-            amountWon += lotteryRound.victoryTierAmounts(RoundVictoryTier.Tier3);
+        for(uint16 i = 0; i < 6; i++) {
+            if (winnersForPools[i] > 0) {
+                amountWon += lotteryRound.victoryTierAmounts(RoundVictoryTier(i));
+            }
         }
         if (referralResults.length > 0) {
             amountWon += lotteryRound.victoryTierAmounts(RoundVictoryTier.Referrer);

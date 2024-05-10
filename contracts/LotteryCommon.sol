@@ -2,7 +2,6 @@
 pragma solidity ^0.8.20;
 
     enum RoundVictoryTier {
-        NO_WIN,
         Tier5_1,
         Tier5,
         Tier4_1,
@@ -10,9 +9,9 @@ pragma solidity ^0.8.20;
         Tier3_1,
         Tier3,
         Referrer,
-        PublicPool,
         TokenHolders,
-        Treasury
+        Treasury,
+        NO_WIN
     }
 
     struct Round {

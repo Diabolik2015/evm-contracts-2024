@@ -49,7 +49,6 @@ contract LotteryMaster is EmergencyFunctions {
         }
     }
 
-    address public treasuryWallets;
     IERC20Metadata public paymentToken;
     CyclixRandomizerInterface public randomizer;
     LotteryReaderInterface public reader;
@@ -67,12 +66,11 @@ contract LotteryMaster is EmergencyFunctions {
         paymentToken = IERC20Metadata(_paymentToken);
         ticketPrice = _ticketPrice * (10 ** uint256(paymentToken.decimals()));
         freeRoundsAreEnabled = _freeRoundsAreEnabled;
-        treasuryWallets = msg.sender;
         bankWallets.push(msg.sender);
     }
 
     function updateSetup(address cyclixRandomizer, address lotteryReader, address _lotteryRoundCreator, address _paymentToken, uint256 _ticketPrice,
-        address _treasuryWallet, uint16 _percentageOfReferralWinners, uint16[] memory _poolPercentagesBasePoints, bool _freeRoundsAreEnabled) public onlyOwner {
+        uint16 _percentageOfReferralWinners, uint16[] memory _poolPercentagesBasePoints, bool _freeRoundsAreEnabled) public onlyOwner {
         if (address(randomizer) != cyclixRandomizer) {
             randomizer = CyclixRandomizerInterface(cyclixRandomizer);
             randomizer.registerGameContract(address(this), "LotteryMasterV0.1");
@@ -81,7 +79,6 @@ contract LotteryMaster is EmergencyFunctions {
         lotteryRoundCreator = LotteryRoundCreatorInterface(_lotteryRoundCreator);
         paymentToken = IERC20Metadata(_paymentToken);
         ticketPrice = _ticketPrice * (10 ** uint256(paymentToken.decimals()));
-        treasuryWallets = _treasuryWallet;
         percentageOfReferralWinners = _percentageOfReferralWinners;
         LotteryRoundInterface(rounds[roundCount - 1]).setPoolPercentagesBasePoints(_poolPercentagesBasePoints);
         freeRoundsAreEnabled = _freeRoundsAreEnabled;
@@ -125,9 +122,7 @@ contract LotteryMaster is EmergencyFunctions {
             if (!crossChainOperator[msg.sender]) {
                 require(paymentToken.balanceOf(tx.origin) >= ticketPrice, "Insufficient funds");
                 counterForBankWallets = uint16(counterForBankWallets++ % bankWallets.length);
-                uint256 treasuryAmount = lotteryRound.treasuryAmountOnTicket(ticketPrice);
-                SafeERC20.safeTransferFrom(paymentToken, buyer, bankWallets[counterForBankWallets], ticketPrice - treasuryAmount);
-                SafeERC20.safeTransferFrom(paymentToken, buyer, treasuryWallets, treasuryAmount);
+                SafeERC20.safeTransferFrom(paymentToken, buyer, bankWallets[counterForBankWallets], ticketPrice);
             }
             lotteryRound.updateVictoryPoolForTicket(ticketPrice);
 
