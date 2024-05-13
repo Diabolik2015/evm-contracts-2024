@@ -25,7 +25,7 @@ contract LotteryMaster is EmergencyFunctions {
     uint256 public statusStartTime;
     uint256 public statusEndTime;
 
-    mapping(address => uint16) public freeRounds;
+    mapping(address => uint256) public freeRounds;
     mapping(address => bool) public crossChainOperator;
     function setCrossChainOperator(address operator, bool value) public onlyOwner {
         crossChainOperator[operator] = value;
@@ -109,9 +109,15 @@ contract LotteryMaster is EmergencyFunctions {
             }
             buyTicket(chainId, chosenNumbers, referral, buyer);
         }
+        if (referral != address(0) && freeRoundsAreEnabled) {
+            unchecked {
+            freeRounds[buyer] = freeRounds[buyer] + moreTicketNumbers.length / 6;
+            freeRounds[referral] = freeRounds[referral] + moreTicketNumbers.length / 6;
+            }
+        }
     }
 
-    function buyTicket(uint256 chainId, uint16[] memory chosenNumbers, address referral, address buyer) public {
+    function buyTicket(uint256 chainId, uint16[] memory chosenNumbers, address referral, address buyer) internal {
         require(freeRounds[buyer] > 0
         || paymentToken.allowance(buyer, address(this)) >= ticketPrice
         || crossChainOperator[msg.sender], "Missing Allowance");
@@ -125,11 +131,6 @@ contract LotteryMaster is EmergencyFunctions {
                 SafeERC20.safeTransferFrom(paymentToken, buyer, bankWallets[counterForBankWallets], ticketPrice);
             }
             lotteryRound.updateVictoryPoolForTicket(ticketPrice);
-
-            if (referral != address(0) && freeRoundsAreEnabled) {
-                freeRounds[buyer]++;
-                freeRounds[referral]++;
-            }
         }
 
         lotteryRound.buyTicket(chainId, chosenNumbers, referral, buyer);
