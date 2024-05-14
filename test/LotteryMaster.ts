@@ -132,7 +132,7 @@ describe("Lottery Master", function () {
       const referralTicket = await lotteryRound.referralTickets(round.referralTicketIds[i])
       const referralTicketWon = checkNumberExistInArray(referralWinnersNumber.map(b => Number(b)),
           Number(referralTicket.referralTicketNumber))
-      referralResults.push([referralTicket.id, referralTicket.referralAddress, referralTicket.referralTicketNumber, referralTicketWon, false, BigInt(0)])
+      referralResults.push([referralTicket.id, referralTicket.buyerAddress, referralTicket.referralAddress, referralTicket.referralTicketNumber, referralTicketWon, false, BigInt(0)])
     }
     return referralResults
   }

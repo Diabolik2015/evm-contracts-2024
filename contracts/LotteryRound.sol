@@ -130,6 +130,7 @@ contract LotteryRound is Ownable, LotteryRoundInterface {
             round.referralCounts++;
             referralTickets.push(ReferralTicket({
                 id: referralTicketId,
+                buyerAddress: buyer,
                 referralAddress: referral,
                 referralTicketNumber: uint16(round.referralCounts),
                 winner: false,

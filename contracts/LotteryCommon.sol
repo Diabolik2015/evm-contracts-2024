@@ -48,6 +48,7 @@ pragma solidity ^0.8.20;
 
     struct ReferralTicket {
         uint256 id;
+        address buyerAddress;
         address referralAddress;
         uint256 referralTicketNumber;
         bool winner;
@@ -56,6 +57,7 @@ pragma solidity ^0.8.20;
 
     struct ReferralTicketResults {
         uint256 referralTicketId;
+        address buyerAddress;
         address referralAddress;
         uint256 referralTicketNumber;
         bool won;

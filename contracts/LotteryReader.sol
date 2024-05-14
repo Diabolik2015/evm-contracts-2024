@@ -221,6 +221,7 @@ contract LotteryReader is LotteryReaderInterface, EmergencyFunctions {
             }
             referralWinnerIds[counter++] = ReferralTicketResults({
                 referralTicketId: referralTicket.id,
+                buyerAddress : referralTicket.buyerAddress,
                 referralAddress : referralTicket.referralAddress,
                 referralTicketNumber: referralTicket.referralTicketNumber,
                 won: referralWon,
