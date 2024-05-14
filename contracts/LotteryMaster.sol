@@ -102,28 +102,32 @@ contract LotteryMaster is EmergencyFunctions {
     }
 
     function buyTickets(uint256 chainId, uint16[] memory moreTicketNumbers, address referral, address buyer) public {
+        bool paidWithFreeTicket = false;
         for (uint i = 0; i < moreTicketNumbers.length; i += 6) {
             uint16[] memory chosenNumbers = new uint16[](6);
             for (uint j = 0; j < 6; j++) {
                 chosenNumbers[j] = moreTicketNumbers[i + j];
             }
-            buyTicket(chainId, chosenNumbers, referral, buyer);
+            paidWithFreeTicket = buyTicket(chainId, chosenNumbers, referral, buyer);
         }
-        if (referral != address(0) && freeRoundsAreEnabled) {
+
+        if (referral != address(0) && freeRoundsAreEnabled && !paidWithFreeTicket) {
             unchecked {
-            freeRounds[buyer] = freeRounds[buyer] + moreTicketNumbers.length / 6;
-            freeRounds[referral] = freeRounds[referral] + moreTicketNumbers.length / 6;
+                freeRounds[buyer] = freeRounds[buyer] + moreTicketNumbers.length / 6;
+                freeRounds[referral] = freeRounds[referral] + moreTicketNumbers.length / 6;
             }
         }
     }
 
-    function buyTicket(uint256 chainId, uint16[] memory chosenNumbers, address referral, address buyer) internal {
+    function buyTicket(uint256 chainId, uint16[] memory chosenNumbers, address referral, address buyer) internal returns(bool) {
         require(freeRounds[buyer] > 0
         || paymentToken.allowance(buyer, address(this)) >= ticketPrice
         || crossChainOperator[msg.sender], "Missing Allowance");
         LotteryRoundInterface lotteryRound = LotteryRoundInterface(rounds[roundCount - 1]);
+        bool paidWithFreeTicket = false;
         if (freeRounds[buyer] > 0) {
             freeRounds[buyer]--;
+            paidWithFreeTicket = true;
         } else {
             if (!crossChainOperator[msg.sender]) {
                 require(paymentToken.balanceOf(tx.origin) >= ticketPrice, "Insufficient funds");
@@ -133,7 +137,12 @@ contract LotteryMaster is EmergencyFunctions {
             lotteryRound.updateVictoryPoolForTicket(ticketPrice);
         }
 
-        lotteryRound.buyTicket(chainId, chosenNumbers, referral, buyer);
+        if (paidWithFreeTicket) {
+            lotteryRound.buyTicket(chainId, chosenNumbers, referral, buyer);
+        } else {
+            lotteryRound.buyTicket(chainId, chosenNumbers, address(0), buyer);
+        }
+        return paidWithFreeTicket;
     }
 
     function addFreeRound(address[] calldata participant) public onlyOwner {
