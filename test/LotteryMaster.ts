@@ -218,7 +218,7 @@ describe("Lottery Master", function () {
       await lotteryMaster.connect(player3).buyTickets((await hre.ethers.provider.getNetwork()).chainId, [1, 4, 6, 10, 21, 24], player1.address, player3.address);
       const round = await lotteryRound.getRound();
       expect(round.ticketsCount).equal(3);
-      expect(round.referralCounts).equal(3);
+      expect(round.referralCounts).equal(1);
       expect((await usdtContract.balanceOf(owner.address)) - initialOwnerBalance).equal(toEtherBigInt(10))
     });
 

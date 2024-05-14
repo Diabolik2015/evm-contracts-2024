@@ -138,9 +138,9 @@ contract LotteryMaster is EmergencyFunctions {
         }
 
         if (paidWithFreeTicket) {
-            lotteryRound.buyTicket(chainId, chosenNumbers, referral, buyer);
-        } else {
             lotteryRound.buyTicket(chainId, chosenNumbers, address(0), buyer);
+        } else {
+            lotteryRound.buyTicket(chainId, chosenNumbers, referral, buyer);
         }
         return paidWithFreeTicket;
     }
