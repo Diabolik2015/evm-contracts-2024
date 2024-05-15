@@ -507,5 +507,48 @@ describe("Lottery Master", function () {
       expect(ticketsNumbers.length).to.equal(lotteryRoundTicketNumbers.length)
       expect(ticketsNumbers).to.deep.equal(lotteryRoundTicketNumbers)
     })
+
+    it("Check Upgrade Works", async function() {
+      const winningPowerNumber = 24
+      const winningNumbers = [5, 7, 3, 13, 14]
+      const referralIndexes = [1]
+      const roundId = 1
+
+      const { lotteryMaster, lotteryRound,
+        lotteryReader, cyclixRandomizer, vrfMock } = await deployLotteryMasterAndStartRound();
+      await addPlayersToLotteryRound(lotteryMaster);
+      await time.increase(50)
+      await lotteryMaster.closeRound(50)
+      await executeChainLinkVrf(roundId, winningNumbers, winningPowerNumber, referralIndexes, lotteryMaster, cyclixRandomizer, vrfMock);
+      await expect(lotteryMaster.fetchRoundNumbers(roundId, 50)).to.be.fulfilled
+      await lotteryMaster.markWinners(roundId, 50)
+      await time.increase(50)
+
+      const deployed = await deployLotteryMaster();
+      await deployed.lotteryMaster.startNewRoundForUpgrade(50, lotteryRound.getAddress(), 10);
+      const lotteryRoundAddress = await deployed.lotteryMaster.rounds(Number((await deployed.lotteryMaster.roundCount())) - 1)
+      const contract = await hre.ethers.getContractFactory("LotteryRound");
+      // @ts-ignore
+      const lotteryRoundUpgrade = contract.attach(lotteryRoundAddress) as LotteryRound;
+      expect((await lotteryRoundUpgrade.getRound()).id).to.equal(1)
+      expect((await lotteryRoundUpgrade.getRound()).uiId).to.equal(10)
+      expect(await lotteryRoundUpgrade.totalVictoryPool()).to.not.equal(0)
+      await addPlayersToLotteryRound(deployed.lotteryMaster);
+      await time.increase(50)
+      await deployed.lotteryMaster.closeRound(50)
+      await executeChainLinkVrf(roundId, winningNumbers, winningPowerNumber, referralIndexes, deployed.lotteryMaster, deployed.cyclixRandomizer, deployed.vrfMock);
+      await expect(deployed.lotteryMaster.fetchRoundNumbers(roundId, 50)).to.be.fulfilled
+      await deployed.lotteryMaster.markWinners(roundId, 50)
+      await time.increase(50)
+
+      await deployed.lotteryMaster.startNewRound(50);
+      const lotteryRoundAddress2 = await deployed.lotteryMaster.rounds(Number((await deployed.lotteryMaster.roundCount())) - 1)
+      const contract2 = await hre.ethers.getContractFactory("LotteryRound");
+      // @ts-ignore
+      const lotteryRoundUpgrade2 = contract2.attach(lotteryRoundAddress2) as LotteryRound;
+      expect((await lotteryRoundUpgrade2.getRound()).id).to.equal(2)
+      expect((await lotteryRoundUpgrade2.getRound()).uiId).to.equal(11)
+      expect(await lotteryRoundUpgrade2.totalVictoryPool()).to.not.equal(0)
+    })
   })
 });

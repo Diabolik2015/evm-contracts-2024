@@ -16,6 +16,7 @@ pragma solidity ^0.8.20;
 
     struct Round {
         uint256 id;
+        uint256 uiId;
         uint256 startTime;
         uint256 endTime;
         bool ended;

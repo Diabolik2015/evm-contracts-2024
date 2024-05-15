@@ -85,13 +85,17 @@ contract LotteryMaster is EmergencyFunctions {
     }
 
     function startNewRound(uint256 _statusEndTime) public onlyOwner {
-        roundCount++;
-        if (roundCount > 1) {
-            rounds.push(lotteryRoundCreator.startNewRound(_statusEndTime, rounds[roundCount - 2]));
-            require(lotteryStatus == LotteryStatuses.ClaimInProgress && statusEndTime < block.timestamp, "Previous round not ended");
+        if (roundCount > 0) {
+            startNewRoundForUpgrade(_statusEndTime, rounds[roundCount - 1], 0);
         } else {
-            rounds.push(lotteryRoundCreator.startNewRound(_statusEndTime, address(0)));
+            startNewRoundForUpgrade(_statusEndTime, address(0), 0);
         }
+    }
+
+    function startNewRoundForUpgrade(uint256 _statusEndTime, address previousRound, uint256 forcedUiIdForUpgrade) public onlyOwner {
+        roundCount++;
+        rounds.push(lotteryRoundCreator.startNewRound(_statusEndTime, previousRound, forcedUiIdForUpgrade));
+        require(previousRound == address(0) || forcedUiIdForUpgrade > 0 || (lotteryStatus == LotteryStatuses.ClaimInProgress && statusEndTime < block.timestamp), "Previous round not ended");
         setLotteryStatus(LotteryStatuses.DrawOpen, _statusEndTime);
     }
 
