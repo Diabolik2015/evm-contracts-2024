@@ -25,7 +25,7 @@ contract LotteryMaster is EmergencyFunctions {
     uint256 public statusStartTime;
     uint256 public statusEndTime;
 
-    mapping(address => uint256) public freeRounds;
+    mapping(uint256 => mapping(address => uint256)) public freeRounds;
     mapping(address => bool) public crossChainOperator;
     function setCrossChainOperator(address operator, bool value) public onlyOwner {
         crossChainOperator[operator] = value;
@@ -106,31 +106,33 @@ contract LotteryMaster is EmergencyFunctions {
     }
 
     function buyTickets(uint256 chainId, uint16[] memory moreTicketNumbers, address referral, address buyer) public {
-        bool paidWithFreeTicket = false;
+        uint256 paidWithFreeTicket = 0;
         for (uint i = 0; i < moreTicketNumbers.length; i += 6) {
             uint16[] memory chosenNumbers = new uint16[](6);
             for (uint j = 0; j < 6; j++) {
                 chosenNumbers[j] = moreTicketNumbers[i + j];
             }
-            paidWithFreeTicket = buyTicket(chainId, chosenNumbers, referral, buyer);
+            if (buyTicket(chainId, chosenNumbers, referral, buyer)) {
+                paidWithFreeTicket += 1;
+            }
         }
 
-        if (referral != address(0) && freeRoundsAreEnabled && !paidWithFreeTicket) {
+        if (referral != address(0) && freeRoundsAreEnabled) {
             unchecked {
-                freeRounds[buyer] = freeRounds[buyer] + moreTicketNumbers.length / 6;
-                freeRounds[referral] = freeRounds[referral] + moreTicketNumbers.length / 6;
+                freeRounds[roundCount][buyer] = freeRounds[roundCount][buyer] + moreTicketNumbers.length / 6 - paidWithFreeTicket;
+                freeRounds[roundCount][referral] = freeRounds[roundCount][referral] + moreTicketNumbers.length / 6 - paidWithFreeTicket;
             }
         }
     }
 
     function buyTicket(uint256 chainId, uint16[] memory chosenNumbers, address referral, address buyer) internal returns(bool) {
-        require(freeRounds[buyer] > 0
+        require(freeRounds[roundCount][buyer] > 0
         || paymentToken.allowance(buyer, address(this)) >= ticketPrice
         || crossChainOperator[msg.sender], "Missing Allowance");
         LotteryRoundInterface lotteryRound = LotteryRoundInterface(rounds[roundCount - 1]);
         bool paidWithFreeTicket = false;
-        if (freeRounds[buyer] > 0) {
-            freeRounds[buyer]--;
+        if (freeRounds[roundCount][buyer] > 0) {
+            freeRounds[roundCount][buyer]--;
             paidWithFreeTicket = true;
         } else {
             if (!crossChainOperator[msg.sender]) {
@@ -151,7 +153,7 @@ contract LotteryMaster is EmergencyFunctions {
 
     function addFreeRound(address[] calldata participant) public onlyOwner {
         for (uint i = 0; i < participant.length; i++) {
-            freeRounds[participant[i]]++;
+            freeRounds[roundCount][participant[i]]++;
         }
     }
 

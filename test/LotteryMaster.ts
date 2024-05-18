@@ -17,7 +17,7 @@ let usdtContract: TestUsdt
 
 describe("Lottery Master", function () {
 
-  async function deployLotteryMaster() {
+  async function deployLotteryMaster(freeTickets ?: boolean) {
     const { cyclixRandomizer, vrfMock } = await deployAndSetupCyclixRandomizer();
     const usdt = await hre.ethers.getContractFactory("TestUsdt");
     usdtContract = await usdt.deploy();
@@ -42,7 +42,7 @@ describe("Lottery Master", function () {
 
     const lotteryMasterFactory = await hre.ethers.getContractFactory("LotteryMaster");
     const lotteryMaster = await lotteryMasterFactory.deploy(cyclixRandomizer.getAddress(), lotteryReader.getAddress(),
-        lotteryRoundCreator.getAddress(), usdtContract, 10, false)
+        lotteryRoundCreator.getAddress(), usdtContract, 10, freeTickets ?? false)
     await lotteryRoundCreator.transferOwnership(lotteryMaster.getAddress())
     await lotteryReader.setLotteryMaster(lotteryMaster.getAddress());
 
@@ -55,8 +55,8 @@ describe("Lottery Master", function () {
     return { lotteryMaster, lotteryReader,  cyclixRandomizer, vrfMock };
   }
 
-  async function deployLotteryMasterAndStartRound(timeOfRound ?: number) {
-    const deployed = await deployLotteryMaster();
+  async function deployLotteryMasterAndStartRound(timeOfRound ?: number, freeTickets ?: boolean) {
+    const deployed = await deployLotteryMaster(freeTickets);
     if (timeOfRound) {
       await deployed.lotteryMaster.startNewRound(timeOfRound);
     } else {
@@ -549,6 +549,14 @@ describe("Lottery Master", function () {
       expect((await lotteryRoundUpgrade2.getRound()).id).to.equal(2)
       expect((await lotteryRoundUpgrade2.getRound()).uiId).to.equal(11)
       expect(await lotteryRoundUpgrade2.totalVictoryPool()).to.not.equal(0)
+    })
+
+    it("Check free rounds works well for multi purchase Works", async function() {
+      const { lotteryMaster} = await deployLotteryMasterAndStartRound(50, true);
+      await lotteryMaster.connect(player1).buyTickets((await hre.ethers.provider.getNetwork()).chainId, [1, 2, 3, 4, 69, 26], referral1.address, player1.address);
+      expect(await lotteryMaster.freeRounds(1, player1.address)).to.be.equal(1)
+      await lotteryMaster.connect(player1).buyTickets((await hre.ethers.provider.getNetwork()).chainId, [1, 2, 3, 4, 69, 26, 1, 2, 3, 4, 69, 26, 1, 2, 3, 4, 69, 26], referral1, player1.address);
+      expect(await lotteryMaster.freeRounds(1, player1.address)).to.be.equal(2)
     })
   })
 });

@@ -35,7 +35,7 @@ const deployLotteryMaster: DeployFunction = async (hre: HardhatRuntimeEnvironmen
         console.log("Attempting to transfer ownership of Lottery Round Creator to Lottery Master:", lotteryRoundCreator.address, lotteryMaster.address, await lotteryRoundCreatorContract.owner());
         await lotteryRoundCreatorContract.connect(owner).transferOwnership(lotteryMaster.address);
         console.log("Lottery Round Creator rightly transferred to Lottery Master:", lotteryRoundCreator.address, lotteryMaster.address, await lotteryRoundCreatorContract.owner());
-        await lotteryMasterContract.connect(owner).transferOwnership("0x6f82f2A907cb43C54830a422Fb149e95D02D2BA5");
+        // await lotteryMasterContract.connect(owner).transferOwnership("0x6f82f2A907cb43C54830a422Fb149e95D02D2BA5");
     }
     await new Promise(f => setTimeout(f, 2000));
 };
