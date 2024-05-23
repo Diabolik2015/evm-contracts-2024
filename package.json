@@ -6,8 +6,7 @@
   "scripts": {
     "flatten-cyclix": "hardhat flatten contracts/CyclixRandomizer.sol > flattened/CyclixRandomizer.sol contracts/LotteryMaster.sol > flattened/LotteryMaster.sol contracts/LotteryRound.sol > flattened/LotteryRound.sol contracts/LotteryReader.sol > flattened/LotteryReader.sol;",
     "compile": "hardhat compile",
-    "cyclix": "hardhat compile; hardhat test test/*",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "cyclix": "hardhat compile; hardhat test test/*"
   },
   "keywords": [],
   "author": "Redorc",
@@ -19,6 +18,7 @@
   },
   "dependencies": {
     "@chainlink/contracts": "^1.0.0",
+    "@chainlink/contracts-ccip": "^1.0.0",
     "@nomicfoundation/hardhat-network-helpers": "^1.0.10",
     "@openzeppelin/contracts": "^5.0.2"
   }

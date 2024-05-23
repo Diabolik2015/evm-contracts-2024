@@ -10,6 +10,7 @@ import { LotteryRoundInterface } from "./LotteryRoundInterface.sol";
 import { LotteryReaderInterface } from "./LotteryReaderInterface.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./LotteryRoundCreatorInterface.sol";
+import {LotteryMasterInterface} from "./LotteryMasterInterface.sol";
     enum LotteryStatuses {
         DrawOpen,
         EvaluatingResults,
@@ -17,8 +18,9 @@ import "./LotteryRoundCreatorInterface.sol";
         ClaimInProgress
     }
 
-contract LotteryMaster is EmergencyFunctions {
+contract LotteryMaster is EmergencyFunctions, LotteryMasterInterface{
 
+    uint chainId;
     uint256 public roundCount;
     address[] public rounds;
     LotteryStatuses public lotteryStatus;
@@ -59,6 +61,7 @@ contract LotteryMaster is EmergencyFunctions {
 
     constructor(address cyclixRandomizer, address lotteryReader, address _lotteryRoundCreator, address _paymentToken, uint256 _ticketPrice, bool _freeRoundsAreEnabled)
     EmergencyFunctions(msg.sender) {
+        chainId = block.chainid;
         randomizer = CyclixRandomizerInterface(cyclixRandomizer);
         randomizer.registerGameContract(address(this), "LotteryMasterV0.1");
         reader = LotteryReaderInterface(lotteryReader);
@@ -105,14 +108,14 @@ contract LotteryMaster is EmergencyFunctions {
         statusEndTime = block.timestamp + _statusEndTime;
     }
 
-    function buyTickets(uint256 chainId, uint16[] memory moreTicketNumbers, address referral, address buyer) public {
+    function buyTickets(uint16[] memory moreTicketNumbers, address referral, address buyer) public override {
         uint256 paidWithFreeTicket = 0;
         for (uint i = 0; i < moreTicketNumbers.length; i += 6) {
             uint16[] memory chosenNumbers = new uint16[](6);
             for (uint j = 0; j < 6; j++) {
                 chosenNumbers[j] = moreTicketNumbers[i + j];
             }
-            if (buyTicket(chainId, chosenNumbers, referral, buyer)) {
+            if (buyTicket(chosenNumbers, referral, buyer)) {
                 paidWithFreeTicket += 1;
             }
         }
@@ -125,7 +128,7 @@ contract LotteryMaster is EmergencyFunctions {
         }
     }
 
-    function buyTicket(uint256 chainId, uint16[] memory chosenNumbers, address referral, address buyer) internal returns(bool) {
+    function buyTicket(uint16[] memory chosenNumbers, address referral, address buyer) internal returns(bool) {
         require(freeRounds[roundCount][buyer] > 0
         || paymentToken.allowance(buyer, address(this)) >= ticketPrice
         || crossChainOperator[msg.sender], "Missing Allowance");
@@ -188,8 +191,8 @@ contract LotteryMaster is EmergencyFunctions {
         setLotteryStatus(LotteryStatuses.ResultsEvaluated, _statusEndTime);
     }
 
-    function markWinners(uint256 roundId, uint256 _statusEndTime) public onlyOwner {
-        LotteryRoundInterface(rounds[roundId - 1]).markWinners(reader.evaluateWonTicketsForRound(roundId), reader.evaluateWonReferralForRound(roundId));
+    function markWinners(uint256 roundId, uint256 _statusEndTime, uint256[] memory winnersForEachTierCrossChain) public onlyOwner {
+        LotteryRoundInterface(rounds[roundId - 1]).markWinners(reader.evaluateWonTicketsForRound(roundId), reader.evaluateWonReferralForRound(roundId), winnersForEachTierCrossChain);
         setLotteryStatus(LotteryStatuses.ClaimInProgress, _statusEndTime);
     }
 

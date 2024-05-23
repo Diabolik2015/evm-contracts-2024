@@ -165,20 +165,19 @@ contract LotteryRound is Ownable, LotteryRoundInterface {
         round.referralWinnersNumberCount = uint16(referralWinnersNumber.length);
     }
 
-    function markWinners(TicketResults[] memory ticketResults, ReferralTicketResults[] memory referralTicketResults) public onlyOwner {
+    function markWinners(TicketResults[] memory ticketResults, ReferralTicketResults[] memory referralTicketResults, uint256[] memory winnersForEachTierCrossChain) public onlyOwner {
         for (uint i = 0; i < ticketResults.length; i++) {
             TicketResults memory ticketResult = ticketResults[i];
             Ticket storage ticket = tickets[ticketResult.ticketId];
             ticket.victoryTier = ticketResult.victoryTier;
-            winnersForEachTier[ticketResult.victoryTier]++;
         }
         for (uint i = 0; i < referralTicketResults.length; i++) {
             ReferralTicketResults memory referralTicketResult = referralTicketResults[i];
             ReferralTicket storage referralTicket = referralTickets[referralTicketResult.referralTicketId];
             referralTicket.winner = referralTicketResult.won;
-            if (referralTicketResult.won) {
-                winnersForEachTier[RoundVictoryTier.Referrer]++;
-            }
+        }
+        for (uint i = 0; i < 7; i++) {
+            winnersForEachTier[RoundVictoryTier(i)] = winnersForEachTierCrossChain[i];
         }
     }
 
