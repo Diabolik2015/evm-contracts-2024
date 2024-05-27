@@ -9,7 +9,7 @@ const deployLotteryRoundCreator: DeployFunction = async (hre: HardhatRuntimeEnvi
     await deploy("LotteryRoundCreator", {
         from: deployer,
         log: true,
-        args: [true],
+        args: [false],
         nonce: "pending",
     });
     await new Promise(f => setTimeout(f, 2000));

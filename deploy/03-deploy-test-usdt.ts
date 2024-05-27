@@ -12,13 +12,14 @@ const deployTestUsdt: DeployFunction = async (hre: HardhatRuntimeEnvironment) =>
         args: [],
         nonce: "pending",
     });
-
+    await new Promise(f => setTimeout(f, 2000));
     const bankDeployed = await deploy("UsdtTestBank", {
         from: deployer,
         log: true,
         args: [usdtDeployed.address],
         nonce: "pending",
     });
+    await new Promise(f => setTimeout(f, 2000));
     const usdtMasterFactory = await hre.ethers.getContractFactory("TestUsdt");
     const usdtContract = usdtMasterFactory.attach(usdtDeployed.address) as TestUsdt;
     if (await usdtContract.balanceOf(bankDeployed.address) == BigInt(0)) {

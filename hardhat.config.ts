@@ -17,6 +17,12 @@ const config: HardhatUserConfig = {
       url: "https://api.avax-test.network/ext/bc/C/rpc",
       accounts: [process.env.PRIVATE_KEY_DEVELOPER??""],
       saveDeployments: true,
+    },
+    sepolia: {
+      chainId: 11155111,
+      url: "https://ethereum-sepolia-rpc.publicnode.com",
+      accounts: [process.env.PRIVATE_KEY_DEVELOPER??""],
+      saveDeployments: true,
     }
   },
   namedAccounts: {
