@@ -33,7 +33,7 @@ contract LotteryRound is Ownable, LotteryRoundInterface {
     mapping(RoundVictoryTier => uint256) public victoryTierAmountsClaimed;
     uint256 public totalVictoryPool;
     uint256 public totalClaimed;
-    mapping(RoundVictoryTier => uint256) public winnersForEachTier;
+    mapping(RoundVictoryTier => uint256) public amountWonForEachTicket;
     address public previousRound;
 
     uint16[]  public  poolPercentagesBasePoints = [3000, 1500, 1000, 700, 500, 300, 1500, 1000, 500];
@@ -165,7 +165,7 @@ contract LotteryRound is Ownable, LotteryRoundInterface {
         round.referralWinnersNumberCount = uint16(referralWinnersNumber.length);
     }
 
-    function markWinners(TicketResults[] memory ticketResults, ReferralTicketResults[] memory referralTicketResults, uint256[] memory winnersForEachTierCrossChain) public onlyOwner {
+    function markWinners(TicketResults[] memory ticketResults, ReferralTicketResults[] memory referralTicketResults, uint256[] memory amountWonForEachTicketCrossChain) public onlyOwner {
         for (uint i = 0; i < ticketResults.length; i++) {
             TicketResults memory ticketResult = ticketResults[i];
             Ticket storage ticket = tickets[ticketResult.ticketId];
@@ -177,7 +177,7 @@ contract LotteryRound is Ownable, LotteryRoundInterface {
             referralTicket.winner = referralTicketResult.won;
         }
         for (uint i = 0; i < 7; i++) {
-            winnersForEachTier[RoundVictoryTier(i)] = winnersForEachTierCrossChain[i];
+            amountWonForEachTicket[RoundVictoryTier(i)] = amountWonForEachTicketCrossChain[i];
         }
     }
 

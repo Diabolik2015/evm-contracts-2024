@@ -5,7 +5,7 @@ import { RoundVictoryTier, Round, Ticket, TicketResults, ReferralTicket, Referra
 
 interface LotteryRoundInterface {
     function getRound() external returns(Round memory);
-    function markWinners(TicketResults[] memory ticketResults, ReferralTicketResults[] memory referralTicketResults, uint256[] memory winnersForEachTierCrossChain) external;
+    function markWinners(TicketResults[] memory ticketResults, ReferralTicketResults[] memory referralTicketResults, uint256[] memory amountWonForEachTicketCrossChain) external;
     function markVictoryClaimed(TicketResults[] memory ticketResults, ReferralTicketResults[] memory referralTicketResults) external;
     function markReferralVictoryClaimed(uint256 referralTicketId, uint256 amountClaimed) external;
     function treasuryAmountOnTicket(uint256 paymentTokenAmount) external view returns (uint256);

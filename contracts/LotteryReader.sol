@@ -164,8 +164,9 @@ contract LotteryReader is LotteryReaderInterface, EmergencyFunctions {
             }
             RoundVictoryTier tierResult = tierFromResults(rightNumbersForTicket, powerNumberFound);
             uint256 amountWon = 0;
-            if (tierResult != RoundVictoryTier.NO_WIN && lotteryRound.winnersForEachTier(tierResult) > 0) {
-                amountWon = poolForVictoryTier(roundId, tierResult) / lotteryRound.winnersForEachTier(tierResult);
+            uint256 amountWonForTier = lotteryRound.amountWonForEachTicket(tierResult);
+            if (tierResult != RoundVictoryTier.NO_WIN && amountWonForTier > 0) {
+                amountWon = amountWonForTier;
             }
             ticketResults[counter++] = TicketResults({
                 ticketId: ticket.id,
@@ -212,12 +213,13 @@ contract LotteryReader is LotteryReaderInterface, EmergencyFunctions {
         Round memory roundForEvaluation = lotteryRound.getRound();
         ReferralTicketResults[] memory referralWinnerIds = new ReferralTicketResults[](roundForEvaluation.referralCounts);
         uint16 counter = 0;
+        uint256 amountWonForReferral = lotteryRound.amountWonForEachTicket(RoundVictoryTier.Referrer);
         for(uint16 referralIndexForRound = 0; referralIndexForRound < roundForEvaluation.referralCounts; referralIndexForRound++) {
             ReferralTicket memory referralTicket = lotteryRound.referralTicketById(roundForEvaluation.referralTicketIds[referralIndexForRound]);
             bool referralWon = existInArrayBigNumber(referralTicket.referralTicketNumber, roundForEvaluation.referralWinnersNumber);
             uint256 amountWon = 0;
-            if (referralWon && lotteryRound.winnersForEachTier(RoundVictoryTier.Referrer) > 0) {
-                amountWon = poolForReferral(roundId) / lotteryRound.winnersForEachTier(RoundVictoryTier.Referrer);
+            if (referralWon && amountWonForReferral > 0) {
+                amountWon = amountWonForReferral;
             }
             referralWinnerIds[counter++] = ReferralTicketResults({
                 referralTicketId: referralTicket.id,

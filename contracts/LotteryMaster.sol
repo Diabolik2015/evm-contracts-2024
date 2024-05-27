@@ -191,8 +191,8 @@ contract LotteryMaster is EmergencyFunctions, LotteryMasterInterface{
         setLotteryStatus(LotteryStatuses.ResultsEvaluated, _statusEndTime);
     }
 
-    function markWinners(uint256 roundId, uint256 _statusEndTime, uint256[] memory winnersForEachTierCrossChain) public onlyOwner {
-        LotteryRoundInterface(rounds[roundId - 1]).markWinners(reader.evaluateWonTicketsForRound(roundId), reader.evaluateWonReferralForRound(roundId), winnersForEachTierCrossChain);
+    function markWinners(uint256 roundId, uint256 _statusEndTime, uint256[] memory amountWonForEachTicketCrossChain) public onlyOwner {
+        LotteryRoundInterface(rounds[roundId - 1]).markWinners(reader.evaluateWonTicketsForRound(roundId), reader.evaluateWonReferralForRound(roundId), amountWonForEachTicketCrossChain);
         setLotteryStatus(LotteryStatuses.ClaimInProgress, _statusEndTime);
     }
 
