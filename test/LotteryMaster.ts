@@ -38,7 +38,7 @@ describe("Lottery Master", function () {
     const lotteryReaderFactory = await hre.ethers.getContractFactory("LotteryReader");
     const lotteryReader = await lotteryReaderFactory.deploy();
     const lotteryRoundCreatorFactory = await hre.ethers.getContractFactory("LotteryRoundCreator");
-    const lotteryRoundCreator = await lotteryRoundCreatorFactory.deploy(false);
+    const lotteryRoundCreator = await lotteryRoundCreatorFactory.deploy();
 
     const lotteryMasterFactory = await hre.ethers.getContractFactory("LotteryMaster");
     const lotteryMaster = await lotteryMasterFactory.deploy(cyclixRandomizer.getAddress(), lotteryReader.getAddress(),
@@ -252,11 +252,11 @@ describe("Lottery Master", function () {
       const roundId = 1
       const { lotteryMaster, lotteryRound, cyclixRandomizer, vrfMock } = await deployLotteryMasterAndStartRound();
       await time.increase(50)
-      await lotteryMaster.closeRound(50)
+      await lotteryMaster.closeRound(50, 0)
 
       await executeChainLinkVrf(roundId, winningNumbers, winningPowerNumber, [], lotteryMaster, cyclixRandomizer, vrfMock);
 
-      await expect(lotteryMaster.fetchRoundNumbers(roundId, 50)).to.be.fulfilled
+      await expect(lotteryMaster.fetchRoundNumbers(roundId, 50, 10)).to.be.fulfilled
 
       let publicRoundWinningNumbers = (await lotteryRound.getRound()).roundNumbers;
       expect(publicRoundWinningNumbers[0]).to.equal(winningNumbers[0]);
@@ -279,17 +279,17 @@ describe("Lottery Master", function () {
       }
       expect(referralTickets.map(r => r.referralTicketNumber)).to.deep.equal([1, 4, 5, 6]);
 
-      await expect(lotteryMaster.closeRound(50)).to.be.revertedWith("Round is not over yet")
+      await expect(lotteryMaster.closeRound(50, 1)).to.be.revertedWith("Round is not over yet")
 
       await time.increase(50)
 
-      await lotteryMaster.closeRound(50)
+      await lotteryMaster.closeRound(50, 1)
 
       expect(await lotteryMaster.publicRoundRandomNumbersRequestId(roundId)).to.equal(1)
-      await expect(lotteryMaster.fetchRoundNumbers(roundId, 50)).to.be.revertedWith("Random numbers not ready")
+      await expect(lotteryMaster.fetchRoundNumbers(roundId, 50, 10)).to.be.revertedWith("Random numbers not ready")
       await executeChainLinkVrf(roundId, winningNumbers, winningPowerNumber, referralIndexes, lotteryMaster, cyclixRandomizer, vrfMock);
 
-      await expect(lotteryMaster.fetchRoundNumbers(roundId, 50)).to.be.fulfilled
+      await expect(lotteryMaster.fetchRoundNumbers(roundId, 50, 10)).to.be.fulfilled
       expect((await lotteryRound.getRound()).roundNumbers[0]).to.equal(winningNumbers[0]);
       expect((await lotteryRound.getRound()).roundNumbers[4]).to.equal(winningNumbers[4]);
       expect((await lotteryRound.getRound()).roundNumbers[5]).to.equal(26);
@@ -306,10 +306,10 @@ describe("Lottery Master", function () {
       await addPlayersToLotteryRound(lotteryMaster);
       expect(await lotteryRound.roundTicketsByAddressCount(player1.address)).to.equal(2)
       await time.increase(50)
-      await lotteryMaster.closeRound(50)
+      await lotteryMaster.closeRound(50, 1)
       await executeChainLinkVrf(roundId, winningNumbers, winningPowerNumber, referralWinnerNumber, lotteryMaster, cyclixRandomizer, vrfMock);
 
-      await expect(lotteryMaster.fetchRoundNumbers(roundId, 50)).to.be.fulfilled
+      await expect(lotteryMaster.fetchRoundNumbers(roundId, 50, 10)).to.be.fulfilled
 
       const ticketResultsOffChain = await computeTicketResultsOffChain(lotteryRound)
       const ticketResultsFromChain = (await lotteryReader.evaluateWonTicketsForRound(roundId))
@@ -385,9 +385,9 @@ describe("Lottery Master", function () {
         lotteryReader, cyclixRandomizer, vrfMock } = await deployLotteryMasterAndStartRound();
       await addPlayersToLotteryRound(lotteryMaster);
       await time.increase(50)
-      await lotteryMaster.closeRound(50)
+      await lotteryMaster.closeRound(50, 1)
       await executeChainLinkVrf(roundId, winningNumbers, winningPowerNumber, referralIndexes, lotteryMaster, cyclixRandomizer, vrfMock);
-      await expect(lotteryMaster.fetchRoundNumbers(roundId, 50)).to.be.fulfilled
+      await expect(lotteryMaster.fetchRoundNumbers(roundId, 50, 10)).to.be.fulfilled
       await lotteryMaster.markWinners(roundId, 50, [0, 0, 0, 0, await lotteryRound.victoryTierAmounts(4), await lotteryRound.victoryTierAmounts(5) / BigInt(2), await lotteryRound.victoryTierAmounts(6)])
 
       expect(await lotteryRound.amountWonForEachTicket(0)).to.equal(0)
@@ -414,11 +414,11 @@ describe("Lottery Master", function () {
       await addPlayersToLotteryRound(lotteryMaster);
 
       await time.increase(50)
-      await lotteryMaster.closeRound(50)
+      await lotteryMaster.closeRound(50, 1)
       const winningNumbersRound2 = [8, 9, 12, 51, 55]
       const referralIndexes2 = [3]
       await executeChainLinkVrf(roundId2, winningNumbersRound2, winningPowerNumber, referralIndexes2, lotteryMaster, cyclixRandomizer, vrfMock);
-      await expect(lotteryMaster.fetchRoundNumbers(roundId2, 50)).to.be.fulfilled
+      await expect(lotteryMaster.fetchRoundNumbers(roundId2, 50, 10)).to.be.fulfilled
       await lotteryMaster.markWinners(roundId2, 50, [0, 0, 0, 0, 0, 0, await lotteryRound2.victoryTierAmounts(6)])
       expect(await lotteryRound2.amountWonForEachTicket(0)).to.equal(0)
       expect(await lotteryRound2.amountWonForEachTicket(1)).to.equal(0)
@@ -485,7 +485,6 @@ describe("Lottery Master", function () {
         for (let j = 0; j < 6; j++) {
           lotteryRoundTicketNumbers.push(await lotteryRound.ticketNumbers(lotteryRoundTickets[i].id, j))
         }
-
       }
 
       const tickets = await lotteryReader.getTicketsForRound(1)
@@ -511,11 +510,11 @@ describe("Lottery Master", function () {
         lotteryReader, cyclixRandomizer, vrfMock } = await deployLotteryMasterAndStartRound();
       await addPlayersToLotteryRound(lotteryMaster);
       await time.increase(50)
-      await lotteryMaster.closeRound(50)
+      await lotteryMaster.closeRound(50, 1)
       await executeChainLinkVrf(roundId, winningNumbers, winningPowerNumber, referralIndexes, lotteryMaster, cyclixRandomizer, vrfMock);
-      await expect(lotteryMaster.fetchRoundNumbers(roundId, 50)).to.be.fulfilled
+      await expect(lotteryMaster.fetchRoundNumbers(roundId, 50, 10)).to.be.fulfilled
       await lotteryMaster.markWinners(roundId, 50, [1, 1, 1, 1, 1, 1, 1])
-      await time.increase(50)
+      await time.increase(100)
 
       const deployed = await deployLotteryMaster();
       await deployed.lotteryMaster.startNewRoundForUpgrade(50, lotteryRound.getAddress(), 10);
@@ -528,9 +527,9 @@ describe("Lottery Master", function () {
       expect(await lotteryRoundUpgrade.totalVictoryPool()).to.not.equal(0)
       await addPlayersToLotteryRound(deployed.lotteryMaster);
       await time.increase(50)
-      await deployed.lotteryMaster.closeRound(50)
+      await deployed.lotteryMaster.closeRound(50, 1)
       await executeChainLinkVrf(roundId, winningNumbers, winningPowerNumber, referralIndexes, deployed.lotteryMaster, deployed.cyclixRandomizer, deployed.vrfMock);
-      await expect(deployed.lotteryMaster.fetchRoundNumbers(roundId, 50)).to.be.fulfilled
+      await expect(deployed.lotteryMaster.fetchRoundNumbers(roundId, 50, 10)).to.be.fulfilled
       await deployed.lotteryMaster.markWinners(roundId, 50, [1, 1, 1, 1, 1, 1, 1])
       await time.increase(50)
 

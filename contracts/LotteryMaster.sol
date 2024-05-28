@@ -28,9 +28,10 @@ contract LotteryMaster is EmergencyFunctions, LotteryMasterInterface{
     uint256 public statusEndTime;
 
     mapping(uint256 => mapping(address => uint256)) public freeRounds;
-    mapping(address => bool) public crossChainOperator;
-    function setCrossChainOperator(address operator, bool value) public onlyOwner {
-        crossChainOperator[operator] = value;
+    function addFreeRound(address[] calldata participant) public onlyOwner {
+        for (uint i = 0; i < participant.length; i++) {
+            freeRounds[roundCount][participant[i]]++;
+        }
     }
 
     uint16 public counterForBankWallets;
@@ -89,16 +90,17 @@ contract LotteryMaster is EmergencyFunctions, LotteryMasterInterface{
 
     function startNewRound(uint256 _statusEndTime) public onlyOwner {
         if (roundCount > 0) {
-            startNewRoundForUpgrade(_statusEndTime, rounds[roundCount - 1], 0);
+            LotteryRoundInterface lotteryRound = LotteryRoundInterface(rounds[roundCount - 1]);
+            startNewRoundForUpgrade(_statusEndTime, rounds[roundCount - 1], lotteryRound.getRound().uiId + 1);
         } else {
-            startNewRoundForUpgrade(_statusEndTime, address(0), 0);
+            startNewRoundForUpgrade(_statusEndTime, address(0), 1);
         }
     }
 
-    function startNewRoundForUpgrade(uint256 _statusEndTime, address previousRound, uint256 forcedUiIdForUpgrade) public onlyOwner {
+    function startNewRoundForUpgrade(uint256 _statusEndTime, address previousRound, uint256 uiId) public onlyOwner {
         roundCount++;
-        rounds.push(lotteryRoundCreator.startNewRound(_statusEndTime, previousRound, forcedUiIdForUpgrade));
-        require(previousRound == address(0) || forcedUiIdForUpgrade > 0 || (lotteryStatus == LotteryStatuses.ClaimInProgress && statusEndTime < block.timestamp), "Previous round not ended");
+        require(previousRound == address(0) || (lotteryStatus == LotteryStatuses.ClaimInProgress && statusEndTime < block.timestamp) || statusEndTime == 0, "Previous round not ended");
+        rounds.push(lotteryRoundCreator.startNewRound(_statusEndTime, previousRound, roundCount, uiId));
         setLotteryStatus(LotteryStatuses.DrawOpen, _statusEndTime);
     }
 
@@ -154,23 +156,16 @@ contract LotteryMaster is EmergencyFunctions, LotteryMasterInterface{
         return paidWithFreeTicket;
     }
 
-    function addFreeRound(address[] calldata participant) public onlyOwner {
-        for (uint i = 0; i < participant.length; i++) {
-            freeRounds[roundCount][participant[i]]++;
-        }
-    }
-
     mapping(uint256 => uint256) public publicRoundRandomNumbersRequestId;
 
-    function closeRound(uint256 _statusEndTime) external onlyOwner {
+    function closeRound(uint256 _statusEndTime, uint32 referralWinners) external onlyOwner {
         LotteryRoundInterface lotteryRound = LotteryRoundInterface(rounds[roundCount - 1]);
         lotteryRound.closeRound();
-        uint16 referralWinners = reader.numberOfReferralWinnersForRoundId(roundCount);
         publicRoundRandomNumbersRequestId[roundCount] = randomizer.requestRandomWords(6 + referralWinners);
         setLotteryStatus(LotteryStatuses.EvaluatingResults, _statusEndTime);
     }
 
-    function fetchRoundNumbers(uint256 roundId, uint256 _statusEndTime) external onlyOwner {
+    function fetchRoundNumbers(uint256 roundId, uint256 _statusEndTime, uint16 referralWinnersCountCrossChain) external onlyOwner {
         LotteryRoundInterface round = LotteryRoundInterface(rounds[roundId - 1]);
         round.couldReceiveWinningNumbers();
         (bool fulfilled, uint256[] memory randomWords) = randomizer.getRequestStatus(publicRoundRandomNumbersRequestId[roundId]);
@@ -184,7 +179,7 @@ contract LotteryMaster is EmergencyFunctions, LotteryMasterInterface{
             roundNumbers[5] = uint16(randomWords[5] % 26 + 1);
             for (uint i = 6; i < randomWords.length; i++) {
                 referralWinnersNumber [i - 6] = reader.getRandomUniqueNumberInArrayForMaxValue(randomWords[i],
-                    round.getRound().referralCounts, referralWinnersNumber);
+                    referralWinnersCountCrossChain, referralWinnersNumber);
             }
         }
         round.storeWinningNumbers(roundNumbers, referralWinnersNumber);

@@ -5,20 +5,11 @@ import "./LotteryRoundCreatorInterface.sol";
 import "./LotteryRound.sol";
 
 contract LotteryRoundCreator is LotteryRoundCreatorInterface, Ownable {
-    bool public isContractsUpgrade;
-    constructor(bool _isContractsUpgrade) Ownable(msg.sender) {
-        isContractsUpgrade = _isContractsUpgrade;
-    }
+    constructor() Ownable(msg.sender) {}
 
-    function startNewRound(uint256 roundDurationInSeconds, address previousRoundAddress, uint256 forcedUiIdForUpgrade) public override onlyOwner returns(address) {
-        if (previousRoundAddress == address(0) && isContractsUpgrade) {
-            LotteryRound newRound = new LotteryRound(address(0xAC9F3eA5FC297D0648ea1b9b0c7446E28fE12867), roundDurationInSeconds, 3);
-            newRound.transferOwnership(owner());
-            return address(newRound);
-        } else {
-            LotteryRound newRound = new LotteryRound(previousRoundAddress, roundDurationInSeconds, forcedUiIdForUpgrade);
-            newRound.transferOwnership(owner());
-            return address(newRound);
-        }
+    function startNewRound(uint256 roundDurationInSeconds, address previousRoundAddress, uint256 id, uint256 uiId) public override onlyOwner returns(address) {
+        LotteryRound newRound = new LotteryRound(previousRoundAddress, roundDurationInSeconds, id, uiId);
+        newRound.transferOwnership(owner());
+        return address(newRound);
     }
 }
