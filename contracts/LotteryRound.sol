@@ -41,7 +41,7 @@ contract LotteryRound is Ownable, LotteryRoundInterface {
         poolPercentagesBasePoints = _poolPercentagesBasePoints;
     }
 
-    constructor(address previousRoundAddress, uint256 roundDurationInSeconds, uint256 id, uint256 uiId) Ownable(msg.sender) {
+    constructor(address previousRoundAddress, uint256 _statusStartTime, uint256 _statusEndTime, uint256 id, uint256 uiId) Ownable(msg.sender) {
         previousRound = previousRoundAddress;
         if (previousRoundAddress != address(0)) {
             propagateWinningFromPreviousRound();
@@ -49,8 +49,8 @@ contract LotteryRound is Ownable, LotteryRoundInterface {
         round = Round({
             id: id,
             uiId:  uiId,
-            startTime: block.timestamp,
-            endTime: block.timestamp + roundDurationInSeconds,
+            startTime: _statusStartTime,
+            endTime: _statusEndTime,
             ended : false,
             roundNumbers: new uint16[](0),
             referralWinnersNumber: new uint256[](0),

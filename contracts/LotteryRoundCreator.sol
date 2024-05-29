@@ -7,8 +7,8 @@ import "./LotteryRound.sol";
 contract LotteryRoundCreator is LotteryRoundCreatorInterface, Ownable {
     constructor() Ownable(msg.sender) {}
 
-    function startNewRound(uint256 roundDurationInSeconds, address previousRoundAddress, uint256 id, uint256 uiId) public override onlyOwner returns(address) {
-        LotteryRound newRound = new LotteryRound(previousRoundAddress, roundDurationInSeconds, id, uiId);
+    function startNewRound(uint256 _statusStartTime, uint256 _statusEndTime, address previousRoundAddress, uint256 id, uint256 uiId) public override onlyOwner returns(address) {
+        LotteryRound newRound = new LotteryRound(previousRoundAddress, _statusStartTime, _statusEndTime, id, uiId);
         newRound.transferOwnership(owner());
         return address(newRound);
     }

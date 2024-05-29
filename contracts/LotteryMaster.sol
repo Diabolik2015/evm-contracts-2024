@@ -88,26 +88,26 @@ contract LotteryMaster is EmergencyFunctions, LotteryMasterInterface{
         freeRoundsAreEnabled = _freeRoundsAreEnabled;
     }
 
-    function startNewRound(uint256 _statusEndTime) public onlyOwner {
+    function startNewRound(uint256 _statusStartTime, uint256 _statusEndTime) public onlyOwner {
         if (roundCount > 0) {
             LotteryRoundInterface lotteryRound = LotteryRoundInterface(rounds[roundCount - 1]);
-            startNewRoundForUpgrade(_statusEndTime, rounds[roundCount - 1], lotteryRound.getRound().uiId + 1);
+            startNewRoundForUpgrade(_statusStartTime, _statusEndTime, rounds[roundCount - 1], lotteryRound.getRound().uiId + 1);
         } else {
-            startNewRoundForUpgrade(_statusEndTime, address(0), 1);
+            startNewRoundForUpgrade(_statusStartTime, _statusEndTime, address(0), 1);
         }
     }
 
-    function startNewRoundForUpgrade(uint256 _statusEndTime, address previousRound, uint256 uiId) public onlyOwner {
+    function startNewRoundForUpgrade(uint256 _statusStartTime, uint256 _statusEndTime, address previousRound, uint256 uiId) public onlyOwner {
         roundCount++;
         require(previousRound == address(0) || (lotteryStatus == LotteryStatuses.ClaimInProgress && statusEndTime < block.timestamp) || statusEndTime == 0, "Previous round not ended");
-        rounds.push(lotteryRoundCreator.startNewRound(_statusEndTime, previousRound, roundCount, uiId));
-        setLotteryStatus(LotteryStatuses.DrawOpen, _statusEndTime);
+        rounds.push(lotteryRoundCreator.startNewRound(_statusStartTime, _statusEndTime, previousRound, roundCount, uiId));
+        setLotteryStatus(LotteryStatuses.DrawOpen, _statusStartTime, _statusEndTime);
     }
 
-    function setLotteryStatus(LotteryStatuses _lotteryStatus, uint256 _statusEndTime) internal onlyOwner {
+    function setLotteryStatus(LotteryStatuses _lotteryStatus, uint256 _statusStartTime, uint256 _statusEndTime) internal onlyOwner {
         lotteryStatus = _lotteryStatus;
-        statusStartTime = block.timestamp;
-        statusEndTime = block.timestamp + _statusEndTime;
+        statusStartTime = _statusStartTime;
+        statusEndTime = _statusEndTime;
     }
 
     function buyTickets(uint16[] memory moreTicketNumbers, address referral, address buyer) public override {
@@ -132,19 +132,16 @@ contract LotteryMaster is EmergencyFunctions, LotteryMasterInterface{
 
     function buyTicket(uint16[] memory chosenNumbers, address referral, address buyer) internal returns(bool) {
         require(freeRounds[roundCount][buyer] > 0
-        || paymentToken.allowance(buyer, address(this)) >= ticketPrice
-        || crossChainOperator[msg.sender], "Missing Allowance");
+        || paymentToken.allowance(buyer, address(this)) >= ticketPrice);
         LotteryRoundInterface lotteryRound = LotteryRoundInterface(rounds[roundCount - 1]);
         bool paidWithFreeTicket = false;
         if (freeRounds[roundCount][buyer] > 0) {
             freeRounds[roundCount][buyer]--;
             paidWithFreeTicket = true;
         } else {
-            if (!crossChainOperator[msg.sender]) {
-                require(paymentToken.balanceOf(tx.origin) >= ticketPrice, "Insufficient funds");
-                counterForBankWallets = uint16(counterForBankWallets++ % bankWallets.length);
-                SafeERC20.safeTransferFrom(paymentToken, buyer, bankWallets[counterForBankWallets], ticketPrice);
-            }
+            require(paymentToken.balanceOf(tx.origin) >= ticketPrice, "Insufficient funds");
+            counterForBankWallets = uint16(counterForBankWallets++ % bankWallets.length);
+            SafeERC20.safeTransferFrom(paymentToken, buyer, bankWallets[counterForBankWallets], ticketPrice);
             lotteryRound.updateVictoryPoolForTicket(ticketPrice);
         }
 
@@ -158,14 +155,14 @@ contract LotteryMaster is EmergencyFunctions, LotteryMasterInterface{
 
     mapping(uint256 => uint256) public publicRoundRandomNumbersRequestId;
 
-    function closeRound(uint256 _statusEndTime, uint32 referralWinners) external onlyOwner {
+    function closeRound(uint256 _statusStartTime, uint256 _statusEndTime, uint32 referralWinners) external onlyOwner {
         LotteryRoundInterface lotteryRound = LotteryRoundInterface(rounds[roundCount - 1]);
         lotteryRound.closeRound();
         publicRoundRandomNumbersRequestId[roundCount] = randomizer.requestRandomWords(6 + referralWinners);
-        setLotteryStatus(LotteryStatuses.EvaluatingResults, _statusEndTime);
+        setLotteryStatus(LotteryStatuses.EvaluatingResults, _statusStartTime, _statusEndTime);
     }
 
-    function fetchRoundNumbers(uint256 roundId, uint256 _statusEndTime, uint16 referralWinnersCountCrossChain) external onlyOwner {
+    function fetchRoundNumbers(uint256 roundId, uint256 _statusStartTime, uint256 _statusEndTime, uint16 referralWinnersCountCrossChain) external onlyOwner {
         LotteryRoundInterface round = LotteryRoundInterface(rounds[roundId - 1]);
         round.couldReceiveWinningNumbers();
         (bool fulfilled, uint256[] memory randomWords) = randomizer.getRequestStatus(publicRoundRandomNumbersRequestId[roundId]);
@@ -183,12 +180,12 @@ contract LotteryMaster is EmergencyFunctions, LotteryMasterInterface{
             }
         }
         round.storeWinningNumbers(roundNumbers, referralWinnersNumber);
-        setLotteryStatus(LotteryStatuses.ResultsEvaluated, _statusEndTime);
+        setLotteryStatus(LotteryStatuses.ResultsEvaluated, _statusStartTime, _statusEndTime);
     }
 
-    function markWinners(uint256 roundId, uint256 _statusEndTime, uint256[] memory amountWonForEachTicketCrossChain) public onlyOwner {
+    function markWinners(uint256 roundId, uint256 _statusStartTime, uint256 _statusEndTime, uint256[] memory amountWonForEachTicketCrossChain) public onlyOwner {
         LotteryRoundInterface(rounds[roundId - 1]).markWinners(reader.evaluateWonTicketsForRound(roundId), reader.evaluateWonReferralForRound(roundId), amountWonForEachTicketCrossChain);
-        setLotteryStatus(LotteryStatuses.ClaimInProgress, _statusEndTime);
+        setLotteryStatus(LotteryStatuses.ClaimInProgress, _statusStartTime, _statusEndTime);
     }
 
     function claimVictory() public {
