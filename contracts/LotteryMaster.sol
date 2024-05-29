@@ -28,9 +28,9 @@ contract LotteryMaster is EmergencyFunctions, LotteryMasterInterface{
     uint256 public statusEndTime;
 
     mapping(uint256 => mapping(address => uint256)) public freeRounds;
-    function addFreeRound(address[] calldata participant) public onlyOwner {
+    function addFreeRound(address[] calldata participant, uint256[] calldata freeTicketAmounts) public onlyOwner {
         for (uint i = 0; i < participant.length; i++) {
-            freeRounds[roundCount][participant[i]]++;
+            freeRounds[roundCount][participant[i]] += freeTicketAmounts[i];
         }
     }
 
